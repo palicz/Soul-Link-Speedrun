@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"package": "net.zenzty.soullink.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"ServerPlayerEntityMixin",
+		"HungerManagerMixin",
+		"FlintAndSteelMixin",
+		"NetherPortalMixin",
+		"EndPortalMixin",
+		"ServerWorldAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

@@ -1,29 +1,28 @@
 {
 	"schemaVersion": 1,
-	"id": "sharedsurvival",
+	"id": "soullink",
 	"version": "${version}",
-	"name": "sharedsurvival",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "Soul Link Speedrun",
+	"description": "A cooperative roguelike speedrun mod where players share health and hunger. Work together to defeat the Ender Dragon!",
 	"authors": [
-		"Me!"
+		"zenzty"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/zenzty/Soul-Link-Speedrun"
 	},
-	"license": "CC0-1.0",
-	"icon": "assets/sharedsurvival/icon.png",
+	"license": "MIT",
+	"icon": "assets/soullink/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"net.zenzty.sharedsurvival.Sharedsurvival"
+			"net.zenzty.soullink.SoulLink"
 		],
 		"fabric-datagen": [
-			"net.zenzty.sharedsurvival.SharedsurvivalDataGenerator"
+			"net.zenzty.soullink.SharedsurvivalDataGenerator"
 		]
 	},
 	"mixins": [
-		"sharedsurvival.mixins.json"
+		"soullink.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.18.4",
