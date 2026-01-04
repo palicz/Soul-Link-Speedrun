@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Mixin for ServerPlayerEntity to prevent death during active runs.
+ * Mixin for ServerPlayerEntity to prevent death during active runs and sync healing.
  */
 @Mixin(ServerPlayerEntity.class)
 public abstract class ServerPlayerEntityMixin {
@@ -44,4 +44,5 @@ public abstract class ServerPlayerEntityMixin {
             runManager.triggerGameOver();
         }
     }
+    
 }
