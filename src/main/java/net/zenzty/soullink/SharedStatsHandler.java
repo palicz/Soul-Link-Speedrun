@@ -104,7 +104,9 @@ public class SharedStatsHandler {
                 List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
                 
                 // Broadcast damage notification to all players
-                String damageText = String.format(java.util.Locale.US, "%.1f", damageAmount);
+                // Convert from half-hearts to full hearts for display (Minecraft stores health as 0-20, where 1 heart = 2)
+                float damageInHearts = damageAmount / 2.0f;
+                String damageText = String.format(java.util.Locale.US, "%.1f", damageInHearts);
                 net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
                     .append(RunManager.getPrefix())
                     .append(net.minecraft.text.Text.literal(damagedPlayer.getName().getString()).formatted(net.minecraft.util.Formatting.WHITE))
