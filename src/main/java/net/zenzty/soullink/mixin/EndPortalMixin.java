@@ -157,7 +157,6 @@ public abstract class EndPortalMixin {
             }
         } catch (Exception e) {
             SoulLink.LOGGER.error("Failed to create EnderDragonFight: {}", e.getMessage());
-            e.printStackTrace();
         }
         
         SoulLink.LOGGER.info("Temporary End initialization complete");

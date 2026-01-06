@@ -4,9 +4,10 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -22,6 +23,8 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.dimension.DimensionTypes;
 import xyz.nucleoid.fantasy.Fantasy;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
@@ -34,13 +37,16 @@ import java.util.Set;
 /**
  * Manages the lifecycle of temporary Fantasy worlds, game timer, and game state.
  * Handles world creation, deletion, portal linking, and player teleportation.
+ * 
+ * Now uses incremental spawn search to prevent server freezes during world generation.
  */
 public class RunManager {
     
     public enum GameState {
-        IDLE,
-        RUNNING,
-        GAMEOVER
+        IDLE,              // No active run
+        GENERATING_WORLD,  // World created, players in spectator, searching for spawn
+        RUNNING,           // Game in progress
+        GAMEOVER           // Game ended (victory or defeat)
     }
     
     private static RunManager instance;
@@ -106,18 +112,30 @@ public class RunManager {
     private RuntimeWorldHandle netherHandle;
     private RuntimeWorldHandle endHandle;
     
+    // Old world handles (to delete after teleporting to new world)
+    private RuntimeWorldHandle oldOverworldHandle;
+    private RuntimeWorldHandle oldNetherHandle;
+    private RuntimeWorldHandle oldEndHandle;
+    
+    // Incremental spawn search state
+    private int searchRadius = 0;
+    private int searchSide = 0;
+    private int searchOffset = 0;
+    private BlockPos validSpawnPos = null;
+    private static final int MAX_SEARCH_RADIUS = 500;
+    private static final int SEARCH_STEP = 32;
+    private static final int CHECKS_PER_TICK = 5; // Number of spots to check per tick
+    
     // Timer tracking
     private long startTimeMillis;
     private long elapsedTimeMillis;
     private boolean timerRunning;
     private boolean timerStartedThisRun;
     
-    // Two-phase timer start: wait for ground, then wait for input
-    private boolean waitingForGround;
+    // Timer start: wait for player input (movement or camera)
     private boolean waitingForInput;
-    private int groundedTicks; // Count ticks player has been grounded (for stability)
     private ServerPlayerEntity trackedPlayer;
-    private double trackedX, trackedY, trackedZ;
+    private double trackedX, trackedZ;
     private float trackedYaw, trackedPitch;
     
     // Game state
@@ -144,7 +162,8 @@ public class RunManager {
     
     public static void cleanup() {
         if (instance != null) {
-            instance.deleteWorlds();
+            instance.deleteOldWorlds(); // Clean up any pending old worlds
+            instance.deleteWorlds(true); // Teleport players on server shutdown
             instance = null;
         }
     }
@@ -157,50 +176,39 @@ public class RunManager {
         return player.getEntityWorld();
     }
     
+    // ==================== BIOME-OPTIMIZED SPAWN SEARCH ====================
+    
     /**
-     * Gets spawn position for a world.
-     * Searches in a spiral pattern to find solid land (not ocean).
+     * Checks if coordinates are in an ocean biome WITHOUT loading the chunk.
+     * This is a massive optimization - avoids generating chunks just to check if they're water.
      */
-    private BlockPos getWorldSpawnPos(ServerWorld world) {
-        // Search in a spiral pattern with increasing radius
-        // Check many more locations to avoid ocean spawns
-        int maxRadius = 500; // Search up to 500 blocks out
-        int step = 32; // Check every 32 blocks (2 chunks)
-        
-        for (int radius = 0; radius <= maxRadius; radius += step) {
-            // Check points at this radius in a square pattern
-            for (int side = 0; side < 4; side++) {
-                for (int offset = -radius; offset <= radius; offset += step) {
-                    int x, z;
-                    switch (side) {
-                        case 0: x = offset; z = -radius; break; // North edge
-                        case 1: x = radius; z = offset; break;  // East edge
-                        case 2: x = offset; z = radius; break;  // South edge
-                        default: x = -radius; z = offset; break; // West edge
-                    }
-                    
-                    // Skip if we've already checked this point (corners)
-                    if (radius > 0 && Math.abs(x) != radius && Math.abs(z) != radius) continue;
-                    
-                    BlockPos safePos = checkSpawnLocation(world, x, z);
-                    if (safePos != null) {
-                        SoulLink.LOGGER.info("Found land spawn at {} after searching radius {}", safePos, radius);
-                        return safePos;
-                    }
-                }
-            }
+    private boolean isOceanBiome(ServerWorld world, int x, int z) {
+        try {
+            // Use BiomeAccess to check biome without loading chunks
+            BiomeAccess biomeAccess = world.getBiomeAccess();
+            // Sample at y=64 (sea level) for accurate biome check
+            BlockPos samplePos = new BlockPos(x, 64, z);
+            RegistryEntry<Biome> biome = biomeAccess.getBiome(samplePos);
+            
+            // Check if it's any type of ocean or deep ocean
+            return biome.isIn(BiomeTags.IS_OCEAN) || biome.isIn(BiomeTags.IS_DEEP_OCEAN);
+        } catch (Exception e) {
+            // If biome check fails, don't skip - let it try to load
+            return false;
         }
-        
-        // Absolute fallback - create a platform at 0,0
-        SoulLink.LOGGER.warn("Could not find land spawn, creating platform at origin");
-        return createSpawnPlatform(world, 0, 0);
     }
     
     /**
      * Checks if a location is suitable for spawning (solid ground, not water/lava).
+     * Now optimized to check biome first before loading chunks.
      */
     private BlockPos checkSpawnLocation(ServerWorld world, int x, int z) {
-        // Force chunk to load
+        // OPTIMIZATION: Check biome first before loading the chunk
+        if (isOceanBiome(world, x, z)) {
+            return null; // Skip oceans entirely without loading chunks!
+        }
+        
+        // Force chunk to load (only for non-ocean biomes now)
         world.getChunk(x >> 4, z >> 4);
         
         int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
@@ -212,21 +220,28 @@ public class RunManager {
         
         BlockPos groundPos = new BlockPos(x, y - 1, z);
         BlockPos standPos = new BlockPos(x, y, z);
+        BlockPos headPos = new BlockPos(x, y + 1, z);
         BlockState groundState = world.getBlockState(groundPos);
         BlockState standState = world.getBlockState(standPos);
+        BlockState headState = world.getBlockState(headPos);
         
         // Check multiple conditions for valid spawn:
         // 1. Ground must be solid
         // 2. Ground must not be water, ice, or lava
-        // 3. Standing position must not be water or lava
+        // 3. Standing position must be air/passable (not solid)
+        // 4. Head position must be air/passable (2 blocks of headroom)
         if (groundState.isSolidBlock(world, groundPos) && 
             !groundState.isOf(Blocks.WATER) && 
             !groundState.isOf(Blocks.LAVA) &&
             !groundState.isOf(Blocks.ICE) &&
             !groundState.isOf(Blocks.PACKED_ICE) &&
             !groundState.isOf(Blocks.BLUE_ICE) &&
+            !standState.isSolidBlock(world, standPos) &&
             !standState.isOf(Blocks.WATER) &&
-            !standState.isOf(Blocks.LAVA)) {
+            !standState.isOf(Blocks.LAVA) &&
+            !headState.isSolidBlock(world, headPos) &&
+            !headState.isOf(Blocks.WATER) &&
+            !headState.isOf(Blocks.LAVA)) {
             return new BlockPos(x, y, z);
         }
         
@@ -234,56 +249,244 @@ public class RunManager {
     }
     
     /**
-     * Creates a small platform for spawning when no land is found.
+     * Gets the next search position in the spiral pattern.
+     * Returns null if we've exhausted all search positions.
      */
-    private BlockPos createSpawnPlatform(ServerWorld world, int x, int z) {
-        // Force chunk to load
-        world.getChunk(x >> 4, z >> 4);
-        
-        int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (y < 62) y = 62;
-        
-        // Create a 3x3 stone platform
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                world.setBlockState(new BlockPos(x + dx, y, z + dz), Blocks.STONE.getDefaultState());
+    private int[] getNextSearchPos() {
+        while (searchRadius <= MAX_SEARCH_RADIUS) {
+            // Handle the center point (radius 0)
+            if (searchRadius == 0) {
+                searchRadius = SEARCH_STEP;
+                return new int[]{0, 0};
             }
-        }
-        
-        // Clear space above
-        for (int dy = 1; dy <= 3; dy++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    world.setBlockState(new BlockPos(x + dx, y + dy, z + dz), Blocks.AIR.getDefaultState());
+            
+            // Calculate position based on current side and offset
+            int x, z;
+            switch (searchSide) {
+                case 0: x = searchOffset; z = -searchRadius; break; // North edge
+                case 1: x = searchRadius; z = searchOffset; break;  // East edge
+                case 2: x = searchOffset; z = searchRadius; break;  // South edge
+                default: x = -searchRadius; z = searchOffset; break; // West edge
+            }
+            
+            // Move to next position
+            searchOffset += SEARCH_STEP;
+            
+            // Check if we've completed this side
+            if (searchOffset > searchRadius) {
+                searchOffset = -searchRadius;
+                searchSide++;
+                
+                // Check if we've completed all sides at this radius
+                if (searchSide >= 4) {
+                    searchSide = 0;
+                    searchOffset = -searchRadius - SEARCH_STEP; // Will be incremented at start
+                    searchRadius += SEARCH_STEP;
                 }
             }
+            
+            // Skip corner duplicates
+            if (searchRadius > SEARCH_STEP && Math.abs(x) != searchRadius && Math.abs(z) != searchRadius) {
+                continue;
+            }
+            
+            return new int[]{x, z};
         }
         
-        return new BlockPos(x, y + 1, z);
+        return null; // Exhausted search
     }
     
     /**
-     * Starts a new run - creates temporary worlds and teleports all players.
+     * Resets the spawn search state for a new search.
+     */
+    private void resetSpawnSearch() {
+        searchRadius = 0;
+        searchSide = 0;
+        searchOffset = -SEARCH_STEP;
+        validSpawnPos = null;
+    }
+    
+    /**
+     * Processes one step of the generation (checks a few spawn locations per tick).
+     * Called during GENERATING_WORLD state.
+     */
+    private void processGenerationStep() {
+        if (overworldHandle == null) {
+            SoulLink.LOGGER.error("No overworld handle during generation!");
+            gameState = GameState.IDLE;
+            return;
+        }
+        
+        ServerWorld world = overworldHandle.asWorld();
+        int checksThisTick = 0;
+        
+        // Check multiple spots per tick to speed up without freezing
+        while (checksThisTick < CHECKS_PER_TICK) {
+            int[] pos = getNextSearchPos();
+            
+            if (pos == null) {
+                // Exhausted all search positions - no valid spawn found
+                transitionToRunning();
+                return;
+            }
+            
+            BlockPos candidate = checkSpawnLocation(world, pos[0], pos[1]);
+            if (candidate != null) {
+                // Found valid spawn!
+                validSpawnPos = candidate;
+                SoulLink.LOGGER.info("Found land spawn at {} after searching radius {}", candidate, searchRadius);
+                transitionToRunning();
+                return;
+            }
+            
+            checksThisTick++;
+        }
+        
+        // Update action bar with progress for all players
+        if (server.getTicks() % 10 == 0) {
+            int progress = Math.min(100, (searchRadius * 100) / MAX_SEARCH_RADIUS);
+            Text statusText = Text.empty()
+                .append(Text.literal("⟳ ").formatted(Formatting.GRAY))
+                .append(Text.literal("Finding spawn... " + progress + "%").formatted(Formatting.GRAY));
+            
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                player.sendMessage(statusText, true);
+            }
+        }
+    }
+    
+    /**
+     * Transitions from GENERATING_WORLD to RUNNING.
+     * Forceloads chunks around spawn, teleports all players, then deletes old worlds.
+     */
+    private void transitionToRunning() {
+        if (overworldHandle == null || validSpawnPos == null) return;
+        
+        ServerWorld world = overworldHandle.asWorld();
+        
+        // Forceload chunks around spawn for smooth teleport (3x3 chunk area)
+        int spawnChunkX = validSpawnPos.getX() >> 4;
+        int spawnChunkZ = validSpawnPos.getZ() >> 4;
+        
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                world.getChunk(spawnChunkX + dx, spawnChunkZ + dz);
+            }
+        }
+        
+        gameState = GameState.RUNNING;
+        
+        // Teleport ALL players to spawn
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            teleportPlayerToSpawn(player);
+        }
+        
+        // NOW delete old worlds (after players are safely in new world)
+        deleteOldWorlds();
+        
+        // Broadcast ready message
+        server.getPlayerManager().broadcast(formatMessage("World ready! Good luck!"), false);
+        
+        SoulLink.LOGGER.info("World generation complete, run started");
+    }
+    
+    /**
+     * Deletes the old world handles saved from previous run.
+     */
+    private void deleteOldWorlds() {
+        if (oldOverworldHandle != null) {
+            try {
+                oldOverworldHandle.delete();
+                SoulLink.LOGGER.info("Deleted old temporary overworld");
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Failed to delete old temporary overworld", e);
+            }
+            oldOverworldHandle = null;
+        }
+        
+        if (oldNetherHandle != null) {
+            try {
+                oldNetherHandle.delete();
+                SoulLink.LOGGER.info("Deleted old temporary nether");
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Failed to delete old temporary nether", e);
+            }
+            oldNetherHandle = null;
+        }
+        
+        if (oldEndHandle != null) {
+            try {
+                oldEndHandle.delete();
+                SoulLink.LOGGER.info("Deleted old temporary end");
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Failed to delete old temporary end", e);
+            }
+            oldEndHandle = null;
+        }
+    }
+    
+        /**
+     * Teleports a player to the spawn position and sets up for gameplay.
+     */
+    private void teleportPlayerToSpawn(ServerPlayerEntity player) {
+        if (overworldHandle == null || validSpawnPos == null) return;
+        
+        ServerWorld tempOverworld = overworldHandle.asWorld();
+        
+        // Reset player for the run
+        resetPlayer(player);
+        
+        // Teleport to spawn
+        player.teleport(tempOverworld, validSpawnPos.getX() + 0.5, validSpawnPos.getY() + 1, validSpawnPos.getZ() + 0.5, 
+            Set.of(), 0, 0, true);
+        
+        // Clear any title
+        player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
+        
+        // Sync stats
+        SharedStatsHandler.syncPlayerToSharedStats(player);
+        
+        // Play ready sound
+        tempOverworld.playSound(null, player.getX(), player.getY(), player.getZ(),
+            SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.0f, 1.5f);
+        
+        // Set up timer tracking for first player - go directly to waiting for input
+        if (!timerStartedThisRun && !waitingForInput) {
+            waitingForInput = true;
+            trackedPlayer = player;
+            // Capture current position and look direction
+            trackedX = player.getX();
+            trackedZ = player.getZ();
+            trackedYaw = player.getYaw();
+            trackedPitch = player.getPitch();
+        }
+    }
+
+    // ==================== RUN LIFECYCLE ====================
+    
+    /**
+     * Starts a new run - creates temporary worlds and begins spawn search.
+     * Players stay where they are until spawn is found, then teleport directly.
      */
     public void startRun() {
-        if (gameState == GameState.RUNNING) {
-            SoulLink.LOGGER.warn("Attempted to start run while already running!");
+        if (gameState == GameState.RUNNING || gameState == GameState.GENERATING_WORLD) {
+            SoulLink.LOGGER.warn("Attempted to start run while already running or generating!");
             return;
         }
         
         SoulLink.LOGGER.info("Starting new Roguelike Speedrun...");
         
-        // Show "Generating world..." title to all players with fade-in
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            // Set fade times: fadeIn=20 ticks (1s), stay=200 ticks (10s), fadeOut=10 ticks (0.5s)
-            player.networkHandler.sendPacket(new TitleFadeS2CPacket(20, 200, 10));
-            player.networkHandler.sendPacket(new TitleS2CPacket(
-                Text.literal("Generating world...").formatted(Formatting.GRAY)
-            ));
-        }
+        // Broadcast starting message
+        server.getPlayerManager().broadcast(formatMessage("Generating new world..."), false);
         
-        // Delete old worlds first to free disk space
-        deleteWorlds();
+        // Save old world handles (delete AFTER teleporting to new world to avoid vanilla kick)
+        oldOverworldHandle = overworldHandle;
+        oldNetherHandle = netherHandle;
+        oldEndHandle = endHandle;
+        overworldHandle = null;
+        netherHandle = null;
+        endHandle = null;
+        validSpawnPos = null;
         
         // Generate new seed for this run
         currentSeed = new Random().nextLong();
@@ -297,23 +500,24 @@ public class RunManager {
         // Reset End initialization flag for the new run
         endInitialized = false;
         
-        // Set game state to running
-        gameState = GameState.RUNNING;
-        
-        // Reset timer state - timer will start after player lands and moves
+        // Reset timer state
         timerStartedThisRun = false;
         timerRunning = false;
-        waitingForGround = false;
         waitingForInput = false;
-        groundedTicks = 0;
         trackedPlayer = null;
         elapsedTimeMillis = 0;
         startTimeMillis = 0;
         
-        // Teleport all players to the new overworld
-        teleportAllPlayersToSpawn();
+        // Reset spawn search and start generating
+        resetSpawnSearch();
+        gameState = GameState.GENERATING_WORLD;
         
-        SoulLink.LOGGER.info("Roguelike Speedrun started with seed: {}", currentSeed);
+        // Put all players in spectator mode (stay where they are until spawn is ready)
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            player.changeGameMode(GameMode.SPECTATOR);
+        }
+        
+        SoulLink.LOGGER.info("World created with seed: {}, now searching for spawn...", currentSeed);
     }
     
     /**
@@ -361,13 +565,21 @@ public class RunManager {
     }
     
     /**
-     * Deletes all temporary worlds to free disk space.
+     * Deletes all temporary worlds.
+     * @param teleportPlayers If true, teleports players to vanilla spawn first.
+     *                        Set to false when starting a new run (players go to new world).
      */
-    public void deleteWorlds() {
-        // First, teleport ALL players to vanilla spawn (copy list to avoid ConcurrentModificationException)
-        List<ServerPlayerEntity> allPlayers = new java.util.ArrayList<>(server.getPlayerManager().getPlayerList());
-        for (ServerPlayerEntity player : allPlayers) {
-            teleportToVanillaSpawn(player);
+    public void deleteWorlds(boolean teleportPlayers) {
+        if (teleportPlayers) {
+            // Teleport players to vanilla spawn (used on server shutdown)
+            List<ServerPlayerEntity> allPlayers = new java.util.ArrayList<>(server.getPlayerManager().getPlayerList());
+            
+            for (ServerPlayerEntity player : allPlayers) {
+                ServerWorld playerWorld = getPlayerWorld(player);
+                if (playerWorld != null && isTemporaryWorld(playerWorld.getRegistryKey())) {
+                    teleportToVanillaSpawn(player);
+                }
+            }
         }
         
         // Now delete the worlds
@@ -400,6 +612,8 @@ public class RunManager {
             }
             endHandle = null;
         }
+        
+        validSpawnPos = null;
     }
     
     /**
@@ -407,63 +621,32 @@ public class RunManager {
      */
     private void teleportToVanillaSpawn(ServerPlayerEntity player) {
         ServerWorld overworld = server.getOverworld();
-        BlockPos spawnPos = getWorldSpawnPos(overworld);
-        player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, 
+        int y = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, 0, 0);
+        if (y < 1) y = 64;
+        
+        player.teleport(overworld, 0.5, y, 0.5, 
             Set.of(), player.getYaw(), player.getPitch(), true);
     }
     
     /**
-     * Teleports all players to the temporary overworld spawn point.
-     */
-    private void teleportAllPlayersToSpawn() {
-        if (overworldHandle == null) {
-            SoulLink.LOGGER.error("Cannot teleport players - no temporary overworld exists!");
-            return;
-        }
-        
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            teleportPlayerToRun(player);
-        }
-    }
-    
-    /**
-     * Teleports a specific player to the current run and syncs their stats.
-     * Used for both initial teleportation and late joiners.
+     * Teleports a late-joining player to the current run.
+     * If generating, puts them in spectator. If running, teleports to spawn.
      */
     public void teleportPlayerToRun(ServerPlayerEntity player) {
-        if (overworldHandle == null) {
-            SoulLink.LOGGER.warn("No active run to teleport player to");
+        if (gameState == GameState.GENERATING_WORLD) {
+            // Still searching for spawn - just put in spectator (don't teleport yet)
+            player.changeGameMode(GameMode.SPECTATOR);
+            player.getInventory().clear();
+            player.clearStatusEffects();
+            player.sendMessage(formatMessage("Finding spawn point, please wait..."), false);
             return;
         }
         
-        ServerWorld tempOverworld = overworldHandle.asWorld();
-        BlockPos spawnPos = getWorldSpawnPos(tempOverworld);
-        
-        // Set game mode to survival
-        player.changeGameMode(GameMode.SURVIVAL);
-        
-        // FULL PLAYER RESET - clear everything from previous run
-        resetPlayer(player);
-        
-        // Teleport to spawn
-        player.teleport(tempOverworld, spawnPos.getX() + 0.5, spawnPos.getY() + 1, spawnPos.getZ() + 0.5, 
-            Set.of(), 0, 0, true);
-        
-        // Clear the "Generating world..." title
-        player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
-        
-        // Sync stats from shared handler
-        SharedStatsHandler.syncPlayerToSharedStats(player);
-        
-        // Set up two-phase timer start for first player
-        if (!timerStartedThisRun && !waitingForGround && !waitingForInput) {
-            waitingForGround = true;
-            groundedTicks = 0;
-            trackedPlayer = player;
-            SoulLink.LOGGER.info("Waiting for {} to land on ground...", player.getName().getString());
+        if (gameState == GameState.RUNNING && validSpawnPos != null) {
+            // Run active - teleport to spawn
+            teleportPlayerToSpawn(player);
+            player.sendMessage(formatMessageWithPlayer("", player.getName().getString(), " joined. Stats synced."), false);
         }
-        
-        SoulLink.LOGGER.info("Teleported {} to temporary overworld at {}", player.getName().getString(), spawnPos);
     }
     
     /**
@@ -499,9 +682,8 @@ public class RunManager {
         SoulLink.LOGGER.info("Reset player {} for new run", player.getName().getString());
     }
     
-    /**
-     * Starts the game timer.
-     */
+    // ==================== TIMER MANAGEMENT ====================
+    
     /**
      * Stops the game timer.
      */
@@ -536,20 +718,20 @@ public class RunManager {
     }
     
     /**
-     * Called every server tick to update the timer display.
+     * Called every server tick to update state.
      */
     public void tick() {
+        // Handle incremental world generation
+        if (gameState == GameState.GENERATING_WORLD) {
+            processGenerationStep();
+            return;
+        }
+        
         if (gameState != GameState.RUNNING) {
             return;
         }
         
-        // Phase 1: Wait for player to be on ground (no message shown)
-        if (waitingForGround) {
-            checkForGrounded();
-            return;
-        }
-        
-        // Phase 2: Wait for player input (movement or camera)
+        // Wait for player input (movement or camera) to start timer
         if (waitingForInput) {
             if (checkForInput()) {
                 // Player moved or looked around - START THE TIMER!
@@ -566,7 +748,9 @@ public class RunManager {
                         .append(Text.literal("00:00:00").formatted(Formatting.WHITE))
                         .append(Text.literal(" - Move to start").formatted(Formatting.GRAY));
                     for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                        player.sendMessage(readyText, true);
+                        if (isInRun(player)) {
+                            player.sendMessage(readyText, true);
+                        }
                     }
                 }
             }
@@ -582,73 +766,36 @@ public class RunManager {
             Text actionBarText = Text.literal(getFormattedTime()).formatted(Formatting.WHITE);
             
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                player.sendMessage(actionBarText, true);
-            }
-        }
-    }
-    
-    /**
-     * Phase 1: Check if the tracked player is on the ground and stable.
-     */
-    private void checkForGrounded() {
-        if (trackedPlayer == null || trackedPlayer.isDisconnected()) {
-            // Find a new player to track
-            List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
-            if (players.isEmpty()) {
-                return;
-            }
-            trackedPlayer = players.get(0);
-            groundedTicks = 0;
-        }
-        
-        // Check if player is on ground
-        if (trackedPlayer.isOnGround()) {
-            groundedTicks++;
-            
-            // Require 10 ticks (0.5 seconds) of being grounded for stability
-            if (groundedTicks >= 10) {
-                // Player is stable on ground - move to phase 2
-                waitingForGround = false;
-                waitingForInput = true;
-                
-                // Capture current position and look direction
-                trackedX = trackedPlayer.getX();
-                trackedY = trackedPlayer.getY();
-                trackedZ = trackedPlayer.getZ();
-                trackedYaw = trackedPlayer.getYaw();
-                trackedPitch = trackedPlayer.getPitch();
-                
-                // Play arrival sound for all players
-                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                    ServerWorld world = getPlayerWorld(player);
-                    if (world != null) {
-                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.7f, 1.2f);
-                    }
+                if (isInRun(player)) {
+                    player.sendMessage(actionBarText, true);
                 }
-                
-                SoulLink.LOGGER.info("Player grounded! Now waiting for input to start timer...");
             }
-        } else {
-            // Reset counter if player leaves ground
-            groundedTicks = 0;
         }
     }
     
     /**
-     * Phase 2: Check if the player has moved or looked around.
+     * Checks if a player is in the active run (in a temporary world).
+     */
+    private boolean isInRun(ServerPlayerEntity player) {
+        ServerWorld world = getPlayerWorld(player);
+        return world != null && isTemporaryWorld(world.getRegistryKey());
+    }
+    
+    /**
+     * Check if the player has moved or looked around to start the timer.
      */
     private boolean checkForInput() {
         if (trackedPlayer == null || trackedPlayer.isDisconnected()) {
             // Find a new player to track
-            List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
+            List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList().stream()
+                .filter(this::isInRun)
+                .toList();
             if (players.isEmpty()) {
                 return false;
             }
             trackedPlayer = players.get(0);
             // Re-capture their position
             trackedX = trackedPlayer.getX();
-            trackedY = trackedPlayer.getY();
             trackedZ = trackedPlayer.getZ();
             trackedYaw = trackedPlayer.getYaw();
             trackedPitch = trackedPlayer.getPitch();
@@ -673,9 +820,7 @@ public class RunManager {
         return hasMoved || hasLooked;
     }
     
-    /**
-     * Decrements the grace period counter each tick.
-     */
+    // ==================== GAME END STATES ====================
     
     /**
      * Handles game over - all players died.
@@ -694,28 +839,30 @@ public class RunManager {
         
         // Set all players to spectator mode
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            player.changeGameMode(GameMode.SPECTATOR);
-            
-            // Play game over sound
-            ServerWorld world = getPlayerWorld(player);
-            if (world != null) {
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ENTITY_WITHER_DEATH, SoundCategory.PLAYERS, 0.5f, 0.8f);
+            if (isInRun(player)) {
+                player.changeGameMode(GameMode.SPECTATOR);
+                
+                // Play game over sound
+                ServerWorld world = getPlayerWorld(player);
+                if (world != null) {
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.ENTITY_WITHER_DEATH, SoundCategory.PLAYERS, 0.5f, 0.8f);
+                }
+                
+                // Send GAME OVER title
+                player.networkHandler.sendPacket(
+                    new TitleS2CPacket(
+                        Text.literal("GAME OVER").formatted(Formatting.RED, Formatting.BOLD)
+                    )
+                );
+                
+                // Send subtitle with just the timer in white
+                player.networkHandler.sendPacket(
+                    new SubtitleS2CPacket(
+                        Text.literal(finalTime).formatted(Formatting.WHITE)
+                    )
+                );
             }
-            
-            // Send GAME OVER title
-            player.networkHandler.sendPacket(
-                new TitleS2CPacket(
-                    Text.literal("GAME OVER").formatted(Formatting.RED, Formatting.BOLD)
-                )
-            );
-            
-            // Send subtitle with just the timer in white
-            player.networkHandler.sendPacket(
-                new SubtitleS2CPacket(
-                    Text.literal(finalTime).formatted(Formatting.WHITE)
-                )
-            );
         }
         
         // Send clickable restart message with proper formatting
@@ -805,7 +952,7 @@ public class RunManager {
         server.getPlayerManager().broadcast(restartMessage, false);
     }
     
-    // Getters
+    // ==================== GETTERS ====================
     
     public GameState getGameState() {
         return gameState;

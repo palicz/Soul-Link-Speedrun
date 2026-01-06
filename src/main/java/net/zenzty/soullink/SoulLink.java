@@ -185,28 +185,32 @@ public class SoulLink implements ModInitializer {
                 return;
             }
             
-            // If no run is active, show welcome message
-            if (!runManager.isRunActive()) {
-                scheduleDelayed(server, 20, () -> {
-                    sendWelcomeMessage(player);
-                });
-                return;
-            }
-            
-            // Handle late joiners to active runs
-            // Check if player is in vanilla world - redirect to run
-            scheduleDelayed(server, 5, () -> {
-                ServerWorld playerWorld = getPlayerWorld(player);
-                if (playerWorld == null) return;
+            // Delay handling to ensure player is fully loaded
+            scheduleDelayed(server, 10, () -> {
+                RunManager.GameState state = runManager.getGameState();
                 
-                if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
-                    LOGGER.info("Late joiner detected: {} - teleporting to active run", player.getName().getString());
-                    runManager.teleportPlayerToRun(player);
-                    
-                    player.sendMessage(
-                        RunManager.formatMessageWithPlayer("", player.getName().getString(), " joined. Stats synced."),
-                        false
-                    );
+                switch (state) {
+                    case IDLE:
+                        // No run active - show welcome message
+                        sendWelcomeMessage(player);
+                        break;
+                        
+                    case GENERATING_WORLD:
+                    case RUNNING:
+                        // Run in progress - teleport player to it
+                        ServerWorld playerWorld = getPlayerWorld(player);
+                        if (playerWorld == null) return;
+                        
+                        if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
+                            LOGGER.info("Late joiner detected: {} - teleporting to run", player.getName().getString());
+                            runManager.teleportPlayerToRun(player);
+                        }
+                        break;
+                        
+                    case GAMEOVER:
+                        // Game over - show restart message
+                        player.sendMessage(RunManager.formatMessage("Run has ended. Use /start to begin a new run."), false);
+                        break;
                 }
             });
         });
@@ -289,7 +293,7 @@ public class SoulLink implements ModInitializer {
             RunManager runManager = RunManager.getInstance();
             
             if (runManager != null) {
-                // Update timer display
+                // Update run manager (handles generation, timer, etc.)
                 runManager.tick();
             }
             
