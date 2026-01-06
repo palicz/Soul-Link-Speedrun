@@ -7,6 +7,8 @@
 		"LivingEntityMixin",
 		"HungerManagerMixin",
 		"FlintAndSteelMixin",
+		"FireChargeItemMixin",
+		"FireBlockMixin",
 		"NetherPortalMixin",
 		"EndPortalMixin",
 		"ServerWorldAccessor"

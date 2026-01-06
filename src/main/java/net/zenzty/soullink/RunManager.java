@@ -842,6 +842,8 @@ public class RunManager {
             if (isInRun(player)) {
                 player.changeGameMode(GameMode.SPECTATOR);
                 
+                player.getInventory().clear();
+                
                 // Play game over sound
                 ServerWorld world = getPlayerWorld(player);
                 if (world != null) {
