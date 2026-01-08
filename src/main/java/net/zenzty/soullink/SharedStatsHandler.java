@@ -21,6 +21,13 @@ public class SharedStatsHandler {
     // Prevent infinite sync loops
     private static boolean isSyncing = false;
 
+    // Accumulator for fractional natural regen (since we divide by player count)
+    private static float regenAccumulator = 0.0f;
+
+    // Accumulators for fractional hunger/saturation drain (since we divide by player count)
+    private static float hungerDrainAccumulator = 0.0f;
+    private static float saturationDrainAccumulator = 0.0f;
+
     /**
      * Resets all shared stats to default values. Called when starting a new run.
      */
@@ -29,6 +36,9 @@ public class SharedStatsHandler {
         sharedHunger = 20;
         sharedSaturation = 5.0f;
         isSyncing = false;
+        regenAccumulator = 0.0f;
+        hungerDrainAccumulator = 0.0f;
+        saturationDrainAccumulator = 0.0f;
         SoulLink.LOGGER.info("Shared stats reset to defaults");
     }
 
@@ -212,6 +222,86 @@ public class SharedStatsHandler {
     }
 
     /**
+     * Called when a player naturally regenerates health (from saturation/hunger). The healing
+     * amount is divided by the number of players in the run to normalize regen speed.
+     * 
+     * Without this, N players = Nx regen speed since each player's regen would stack.
+     */
+    public static void onNaturalRegen(ServerPlayerEntity regenPlayer, float healAmount) {
+        if (isSyncing)
+            return;
+
+        RunManager runManager = RunManager.getInstance();
+        if (runManager == null || !runManager.isRunActive())
+            return;
+
+        ServerWorld playerWorld = getPlayerWorld(regenPlayer);
+        if (playerWorld == null)
+            return;
+
+        if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
+            return;
+
+        MinecraftServer server = runManager.getServer();
+        if (server == null)
+            return;
+
+        // Count players in the run
+        int playerCount = 0;
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            ServerWorld world = getPlayerWorld(player);
+            if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
+                playerCount++;
+            }
+        }
+
+        if (playerCount == 0)
+            return;
+
+        // Divide the heal amount by player count and accumulate
+        float normalizedHeal = healAmount / playerCount;
+        regenAccumulator += normalizedHeal;
+
+        SoulLink.LOGGER.info(
+                "[REGEN DEBUG] Player {} healed {} HP, normalized to {} ({} players), accumulator now {}",
+                regenPlayer.getName().getString(), healAmount, normalizedHeal, playerCount,
+                regenAccumulator);
+
+        // Only apply healing when we've accumulated at least 0.5 HP (prevents constant tiny
+        // updates)
+        if (regenAccumulator >= 0.5f) {
+            float healToApply = regenAccumulator;
+            regenAccumulator = 0.0f;
+
+            isSyncing = true;
+            try {
+                float oldHealth = sharedHealth;
+                sharedHealth = MathHelper.clamp(sharedHealth + healToApply, 0.0f, 20.0f);
+
+                if (sharedHealth > oldHealth) {
+                    // Sync to all players
+                    for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                        ServerWorld otherWorld = getPlayerWorld(player);
+                        if (otherWorld == null)
+                            continue;
+
+                        if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                            continue;
+
+                        player.setHealth(sharedHealth);
+                    }
+
+                    SoulLink.LOGGER.info(
+                            "[REGEN DEBUG] Applied {} HP healing: {} -> {} ({} players in run)",
+                            healToApply, oldHealth, sharedHealth, playerCount);
+                }
+            } finally {
+                isSyncing = false;
+            }
+        }
+    }
+
+    /**
      * Called when a player's hunger changes. Updates master values and syncs to all other players.
      */
     public static void onPlayerHungerChanged(ServerPlayerEntity player, int newFoodLevel,
@@ -267,6 +357,93 @@ public class SharedStatsHandler {
 
         } finally {
             isSyncing = false;
+        }
+    }
+
+    /**
+     * Called when a player's hunger/saturation drains from natural regeneration. The drain is
+     * divided by the number of players to normalize drain rate.
+     * 
+     * Without this, N players = Nx hunger drain since each player's regen consumes hunger.
+     */
+    public static void onNaturalHungerDrain(ServerPlayerEntity drainPlayer, int foodDrain,
+            float satDrain) {
+        if (isSyncing)
+            return;
+
+        RunManager runManager = RunManager.getInstance();
+        if (runManager == null || !runManager.isRunActive())
+            return;
+
+        ServerWorld playerWorld = getPlayerWorld(drainPlayer);
+        if (playerWorld == null)
+            return;
+
+        if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
+            return;
+
+        MinecraftServer server = runManager.getServer();
+        if (server == null)
+            return;
+
+        // Count players in the run
+        int playerCount = 0;
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            ServerWorld world = getPlayerWorld(player);
+            if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
+                playerCount++;
+            }
+        }
+
+        if (playerCount == 0)
+            return;
+
+        // Divide the drain by player count and accumulate
+        float normalizedFoodDrain = (float) foodDrain / playerCount;
+        float normalizedSatDrain = satDrain / playerCount;
+
+        hungerDrainAccumulator += normalizedFoodDrain;
+        saturationDrainAccumulator += normalizedSatDrain;
+
+        // Check if we should apply the accumulated drain
+        boolean shouldApply = hungerDrainAccumulator >= 1.0f || saturationDrainAccumulator >= 0.5f;
+
+        if (shouldApply) {
+            isSyncing = true;
+            try {
+                // Apply accumulated food drain (whole numbers only)
+                int foodToApply = (int) hungerDrainAccumulator;
+                if (foodToApply > 0) {
+                    sharedHunger = MathHelper.clamp(sharedHunger - foodToApply, 0, 20);
+                    hungerDrainAccumulator -= foodToApply;
+                }
+
+                // Apply accumulated saturation drain
+                if (saturationDrainAccumulator >= 0.1f) {
+                    float satToApply = saturationDrainAccumulator;
+                    sharedSaturation = MathHelper.clamp(sharedSaturation - satToApply, 0.0f, 20.0f);
+                    saturationDrainAccumulator = 0.0f;
+                }
+
+                // Sync to all players
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    ServerWorld otherWorld = getPlayerWorld(player);
+                    if (otherWorld == null)
+                        continue;
+
+                    if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                        continue;
+
+                    player.getHungerManager().setFoodLevel(sharedHunger);
+                    player.getHungerManager().setSaturationLevel(sharedSaturation);
+                }
+
+                SoulLink.LOGGER.debug(
+                        "Natural hunger drain applied: Food={}, Sat={} (from {} players)",
+                        sharedHunger, sharedSaturation, playerCount);
+            } finally {
+                isSyncing = false;
+            }
         }
     }
 
