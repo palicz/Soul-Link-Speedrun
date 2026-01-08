@@ -18,6 +18,9 @@ public abstract class LivingEntityMixin {
     /**
      * Intercepts healing to sync health increases to all players. Called after the heal() method
      * has updated the entity's health.
+     * 
+     * For natural regeneration (small heals <= 1.0), the healing is divided by the number of
+     * players to normalize regen speed regardless of player count.
      */
     @Inject(method = "heal", at = @At("TAIL"))
     private void onHeal(float amount, CallbackInfo ci) {
@@ -32,11 +35,17 @@ public abstract class LivingEntityMixin {
             return;
         }
 
-        // Get the player's current health after healing
-        float newHealth = player.getHealth();
-
-        // Sync the healing to all players
-        SharedStatsHandler.onPlayerHealed(player, newHealth);
+        // Small heal amounts (<=1.0) typically indicate natural regeneration from saturation
+        // Divide by player count to normalize regen speed
+        boolean isNaturalRegen = amount <= 1.0f;
+        if (isNaturalRegen) {
+            // Let SharedStatsHandler handle the normalized regen
+            SharedStatsHandler.onNaturalRegen(player, amount);
+        } else {
+            // Larger heals (potions, golden apples) sync normally
+            float newHealth = player.getHealth();
+            SharedStatsHandler.onPlayerHealed(player, newHealth);
+        }
     }
 }
 

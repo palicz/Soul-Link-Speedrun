@@ -33,6 +33,9 @@ public abstract class HungerManagerMixin {
     /**
      * After each hunger update tick, check if values changed and sync. Note: In 1.21.11,
      * HungerManager.update() takes ServerPlayerEntity directly.
+     * 
+     * Hunger drain from natural regeneration is divided by player count to prevent Nx drain rate.
+     * Hunger gains from eating are synced normally.
      */
     @Inject(method = "update", at = @At("TAIL"))
     private void afterHungerUpdate(ServerPlayerEntity player, CallbackInfo ci) {
@@ -56,10 +59,26 @@ public abstract class HungerManagerMixin {
         }
 
         // Check if hunger/saturation changed
-        if (this.foodLevel != previousFoodLevel
-                || Math.abs(this.saturationLevel - previousSaturation) > 0.01f) {
+        boolean foodChanged = this.foodLevel != previousFoodLevel;
+        boolean satChanged = Math.abs(this.saturationLevel - previousSaturation) > 0.01f;
 
-            SharedStatsHandler.onPlayerHungerChanged(player, this.foodLevel, this.saturationLevel);
+        if (foodChanged || satChanged) {
+            // Determine if this is hunger drain (decrease) or hunger gain (eating)
+            boolean isHungerDrain = this.foodLevel < previousFoodLevel
+                    || this.saturationLevel < previousSaturation - 0.01f;
+
+            if (isHungerDrain) {
+                // Calculate the drain amounts
+                int foodDrain = previousFoodLevel - this.foodLevel;
+                float satDrain = previousSaturation - this.saturationLevel;
+
+                // Use normalized hunger drain (divided by player count)
+                SharedStatsHandler.onNaturalHungerDrain(player, foodDrain, satDrain);
+            } else {
+                // Hunger gain (eating) - sync normally
+                SharedStatsHandler.onPlayerHungerChanged(player, this.foodLevel,
+                        this.saturationLevel);
+            }
 
             previousFoodLevel = this.foodLevel;
             previousSaturation = this.saturationLevel;
