@@ -352,6 +352,12 @@ public class SoulLink implements ModInitializer {
                 return true;
             }
             
+            // If player is blocking with a shield, let the damage through
+            // The shield will handle blocking it, and AFTER_DAMAGE will check the blocked flag
+            if (player.isBlocking()) {
+                return true;
+            }
+            
             // Check if this damage would be lethal
             // Note: 'amount' is raw damage before armor reduction
             float currentHealth = player.getHealth();
@@ -383,6 +389,12 @@ public class SoulLink implements ModInitializer {
             
             RunManager runManager = RunManager.getInstance();
             if (runManager == null || !runManager.isRunActive()) {
+                return;
+            }
+            
+            // If damage was blocked by a shield, skip syncing entirely
+            // This fixes shields not working against Creepers/TNT during RUNNING state
+            if (blocked) {
                 return;
             }
             
