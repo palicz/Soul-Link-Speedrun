@@ -629,7 +629,7 @@ public class RunManager {
     /**
      * Teleports a player to the vanilla overworld spawn.
      */
-    private void teleportToVanillaSpawn(ServerPlayerEntity player) {
+    public void teleportToVanillaSpawn(ServerPlayerEntity player) {
         ServerWorld overworld = server.getOverworld();
         int y = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, 0, 0);
         if (y < 1) y = 64;

@@ -185,13 +185,19 @@ public class SoulLink implements ModInitializer {
                 return;
             }
             
-            // Delay handling to ensure player is fully loaded
+            // IMMEDIATELY teleport if IDLE to prevent suffocation damage
+            // (handles server restart mid-run where player coords were saved from temp world)
+            if (runManager.getGameState() == RunManager.GameState.IDLE) {
+                runManager.teleportToVanillaSpawn(player);
+            }
+            
+            // Delay other handling to ensure player is fully loaded
             scheduleDelayed(server, 10, () -> {
                 RunManager.GameState state = runManager.getGameState();
                 
                 switch (state) {
                     case IDLE:
-                        // No run active - show welcome message
+                        // Already teleported above, just show welcome message
                         sendWelcomeMessage(player);
                         break;
                         
