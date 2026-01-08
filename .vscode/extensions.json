@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+      "redhat.java",           // Language Support for Java
+      "vscjava.vscode-java-debug", // Debugger
+      "vscjava.vscode-gradle",     // Gradle support (standard for mods)
+      "vscjava.vscode-java-test"   // Testing support
+    ]
+  }

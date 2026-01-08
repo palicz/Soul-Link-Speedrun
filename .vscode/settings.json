@@ -1,0 +1,18 @@
+{
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.import.gradle.enabled": true,
+
+  // Formatter Settings
+  "editor.defaultFormatter": "redhat.java",
+  "editor.formatOnSave": true,
+  "java.format.settings.profile": "GoogleStyle",
+  "java.format.settings.url": "https://raw.githubusercontent.com/google/styleguide/gh-pages/eclipse-java-google-style.xml",
+
+
+
+  // Code Actions on Save
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+},
+}
