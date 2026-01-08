@@ -528,10 +528,13 @@ public class RunManager {
         // Get the vanilla overworld for reference
         ServerWorld vanillaOverworld = server.getOverworld();
         
+        // Get the server's current difficulty setting
+        Difficulty serverDifficulty = server.getSaveProperties().getDifficulty();
+        
         // Create temporary Overworld
         RuntimeWorldConfig overworldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD)
-                .setDifficulty(Difficulty.NORMAL)
+                .setDifficulty(serverDifficulty)
                 .setGameRule(GameRules.ADVANCE_TIME, true)
                 .setSeed(currentSeed)
                 .setGenerator(vanillaOverworld.getChunkManager().getChunkGenerator());
@@ -546,7 +549,7 @@ public class RunManager {
         if (vanillaNether != null) {
             RuntimeWorldConfig netherConfig = new RuntimeWorldConfig()
                     .setDimensionType(DimensionTypes.THE_NETHER)
-                    .setDifficulty(Difficulty.NORMAL)
+                    .setDifficulty(serverDifficulty)
                     .setSeed(currentSeed)
                     .setGenerator(vanillaNether.getChunkManager().getChunkGenerator());
             
@@ -559,7 +562,7 @@ public class RunManager {
         if (vanillaEnd != null) {
             RuntimeWorldConfig endConfig = new RuntimeWorldConfig()
                     .setDimensionType(DimensionTypes.THE_END)
-                    .setDifficulty(Difficulty.NORMAL)
+                    .setDifficulty(serverDifficulty)
                     .setSeed(currentSeed)
                     .setGenerator(vanillaEnd.getChunkManager().getChunkGenerator());
             
