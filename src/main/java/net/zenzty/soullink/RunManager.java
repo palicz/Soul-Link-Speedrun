@@ -1,5 +1,8 @@
 package net.zenzty.soullink;
 
+import net.minecraft.advancement.AdvancementEntry;
+import net.minecraft.advancement.AdvancementProgress;
+import net.minecraft.advancement.PlayerAdvancementTracker;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
@@ -658,7 +661,7 @@ public class RunManager {
     
     /**
      * Fully resets a player for a new run.
-     * Clears inventory, effects, XP, and resets health/hunger.
+     * Clears inventory, effects, XP, advancements, and resets health/hunger.
      */
     private void resetPlayer(ServerPlayerEntity player) {
         // Clear inventory
@@ -683,10 +686,33 @@ public class RunManager {
         player.setFireTicks(0);
         player.setFrozenTicks(0);
         
+        // Reset all advancements
+        resetPlayerAdvancements(player);
+        
         // Set to survival mode
         player.changeGameMode(GameMode.SURVIVAL);
         
         SoulLink.LOGGER.info("Reset player {} for new run", player.getName().getString());
+    }
+    
+    /**
+     * Resets all advancements for a player.
+     * Revokes all criteria from every advancement.
+     */
+    private void resetPlayerAdvancements(ServerPlayerEntity player) {
+        PlayerAdvancementTracker tracker = player.getAdvancementTracker();
+        
+        // Iterate over all advancements and revoke all criteria
+        for (AdvancementEntry advancement : server.getAdvancementLoader().getAdvancements()) {
+            AdvancementProgress progress = tracker.getProgress(advancement);
+            
+            // Revoke each obtained criterion
+            for (String criterion : progress.getObtainedCriteria()) {
+                tracker.revokeCriterion(advancement, criterion);
+            }
+        }
+        
+        SoulLink.LOGGER.info("Reset advancements for player {}", player.getName().getString());
     }
     
     // ==================== TIMER MANAGEMENT ====================
