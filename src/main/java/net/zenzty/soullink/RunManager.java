@@ -200,7 +200,19 @@ public class RunManager {
     }
     
     /**
-     * Checks if a location is suitable for spawning (solid ground, not water/lava).
+     * Checks if a block position is passable (no collision, safe for player).
+     */
+    private boolean isPassable(ServerWorld world, BlockPos pos) {
+        BlockState state = world.getBlockState(pos);
+        // Check if the block has no collision shape (player can occupy this space)
+        // Also explicitly reject water and lava
+        return state.getCollisionShape(world, pos).isEmpty() &&
+               !state.isOf(Blocks.WATER) &&
+               !state.isOf(Blocks.LAVA);
+    }
+    
+    /**
+     * Checks if a location is suitable for spawning (solid ground, 2 blocks of clearance).
      * Now optimized to check biome first before loading chunks.
      */
     private BlockPos checkSpawnLocation(ServerWorld world, int x, int z) {
@@ -223,26 +235,20 @@ public class RunManager {
         BlockPos standPos = new BlockPos(x, y, z);
         BlockPos headPos = new BlockPos(x, y + 1, z);
         BlockState groundState = world.getBlockState(groundPos);
-        BlockState standState = world.getBlockState(standPos);
-        BlockState headState = world.getBlockState(headPos);
         
-        // Check multiple conditions for valid spawn:
-        // 1. Ground must be solid
-        // 2. Ground must not be water, ice, or lava
-        // 3. Standing position must be air/passable (not solid)
-        // 4. Head position must be air/passable (2 blocks of headroom)
-        if (groundState.isSolidBlock(world, groundPos) && 
+        // Check conditions for valid spawn:
+        // 1. Ground must be solid (has collision)
+        // 2. Ground must not be hazardous (water, ice, lava)
+        // 3. Standing position must be passable (no collision)
+        // 4. Head position must be passable (2 blocks of clearance)
+        boolean validGround = !groundState.getCollisionShape(world, groundPos).isEmpty() &&
             !groundState.isOf(Blocks.WATER) && 
             !groundState.isOf(Blocks.LAVA) &&
             !groundState.isOf(Blocks.ICE) &&
             !groundState.isOf(Blocks.PACKED_ICE) &&
-            !groundState.isOf(Blocks.BLUE_ICE) &&
-            !standState.isSolidBlock(world, standPos) &&
-            !standState.isOf(Blocks.WATER) &&
-            !standState.isOf(Blocks.LAVA) &&
-            !headState.isSolidBlock(world, headPos) &&
-            !headState.isOf(Blocks.WATER) &&
-            !headState.isOf(Blocks.LAVA)) {
+            !groundState.isOf(Blocks.BLUE_ICE);
+        
+        if (validGround && isPassable(world, standPos) && isPassable(world, headPos)) {
             return new BlockPos(x, y, z);
         }
         
@@ -437,8 +443,8 @@ public class RunManager {
         // Reset player for the run
         resetPlayer(player);
         
-        // Teleport to spawn
-        player.teleport(tempOverworld, validSpawnPos.getX() + 0.5, validSpawnPos.getY() + 1, validSpawnPos.getZ() + 0.5, 
+        // Teleport to spawn (Y is already the standing position from heightmap)
+        player.teleport(tempOverworld, validSpawnPos.getX() + 0.5, validSpawnPos.getY(), validSpawnPos.getZ() + 0.5, 
             Set.of(), 0, 0, true);
         
         // Clear any title
