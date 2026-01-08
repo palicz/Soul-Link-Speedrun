@@ -386,6 +386,13 @@ public class SoulLink implements ModInitializer {
                         "Lethal damage detected for {} ({} damage, {} health) - triggering game over!",
                         player.getName().getString(), amount, currentHealth);
 
+                // Broadcast death message to all players (use vanilla death message format)
+                Text deathMessage = source.getDeathMessage(player);
+                Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
+                        .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
+                        .append(deathMessage.copy().formatted(Formatting.RED));
+                runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage, false);
+
                 // Heal player to max so they don't look dead
                 player.setHealth(player.getMaxHealth());
 
@@ -423,6 +430,15 @@ public class SoulLink implements ModInitializer {
                         LOGGER.warn(
                                 "Player {} reached 0 health despite ALLOW_DAMAGE check - triggering game over",
                                 player.getName().getString());
+
+                        // Broadcast death message to all players (use vanilla death message format)
+                        Text deathMessage = source.getDeathMessage(player);
+                        Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
+                                .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
+                                .append(deathMessage.copy().formatted(Formatting.RED));
+                        runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage,
+                                false);
+
                         player.setHealth(player.getMaxHealth());
                         runManager.triggerGameOver();
                         return;
