@@ -229,20 +229,16 @@ public class RunManager {
         // Check multiple conditions for valid spawn:
         // 1. Ground must be solid
         // 2. Ground must not be water, ice, or lava
-        // 3. Standing position must be air/passable (not solid)
-        // 4. Head position must be air/passable (2 blocks of headroom)
+        // 3. Standing position must be air (2 blocks of headroom)
+        // 4. Head position must be air (prevents spawning under trees)
         if (groundState.isSolidBlock(world, groundPos) && 
             !groundState.isOf(Blocks.WATER) && 
             !groundState.isOf(Blocks.LAVA) &&
             !groundState.isOf(Blocks.ICE) &&
             !groundState.isOf(Blocks.PACKED_ICE) &&
             !groundState.isOf(Blocks.BLUE_ICE) &&
-            !standState.isSolidBlock(world, standPos) &&
-            !standState.isOf(Blocks.WATER) &&
-            !standState.isOf(Blocks.LAVA) &&
-            !headState.isSolidBlock(world, headPos) &&
-            !headState.isOf(Blocks.WATER) &&
-            !headState.isOf(Blocks.LAVA)) {
+            standState.isAir() &&
+            headState.isAir()) {
             return new BlockPos(x, y, z);
         }
         
@@ -437,8 +433,8 @@ public class RunManager {
         // Reset player for the run
         resetPlayer(player);
         
-        // Teleport to spawn
-        player.teleport(tempOverworld, validSpawnPos.getX() + 0.5, validSpawnPos.getY() + 1, validSpawnPos.getZ() + 0.5, 
+        // Teleport to spawn (Y is already the standing position from heightmap)
+        player.teleport(tempOverworld, validSpawnPos.getX() + 0.5, validSpawnPos.getY(), validSpawnPos.getZ() + 0.5, 
             Set.of(), 0, 0, true);
         
         // Clear any title
