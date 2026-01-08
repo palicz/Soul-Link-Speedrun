@@ -200,19 +200,7 @@ public class RunManager {
     }
     
     /**
-     * Checks if a block position is passable (no collision, safe for player).
-     */
-    private boolean isPassable(ServerWorld world, BlockPos pos) {
-        BlockState state = world.getBlockState(pos);
-        // Check if the block has no collision shape (player can occupy this space)
-        // Also explicitly reject water and lava
-        return state.getCollisionShape(world, pos).isEmpty() &&
-               !state.isOf(Blocks.WATER) &&
-               !state.isOf(Blocks.LAVA);
-    }
-    
-    /**
-     * Checks if a location is suitable for spawning (solid ground, 2 blocks of clearance).
+     * Checks if a location is suitable for spawning (solid ground, not water/lava).
      * Now optimized to check biome first before loading chunks.
      */
     private BlockPos checkSpawnLocation(ServerWorld world, int x, int z) {
@@ -235,20 +223,22 @@ public class RunManager {
         BlockPos standPos = new BlockPos(x, y, z);
         BlockPos headPos = new BlockPos(x, y + 1, z);
         BlockState groundState = world.getBlockState(groundPos);
+        BlockState standState = world.getBlockState(standPos);
+        BlockState headState = world.getBlockState(headPos);
         
-        // Check conditions for valid spawn:
-        // 1. Ground must be solid (has collision)
-        // 2. Ground must not be hazardous (water, ice, lava)
-        // 3. Standing position must be passable (no collision)
-        // 4. Head position must be passable (2 blocks of clearance)
-        boolean validGround = !groundState.getCollisionShape(world, groundPos).isEmpty() &&
+        // Check multiple conditions for valid spawn:
+        // 1. Ground must be solid
+        // 2. Ground must not be water, ice, or lava
+        // 3. Standing position must be air (2 blocks of headroom)
+        // 4. Head position must be air (prevents spawning under trees)
+        if (groundState.isSolidBlock(world, groundPos) && 
             !groundState.isOf(Blocks.WATER) && 
             !groundState.isOf(Blocks.LAVA) &&
             !groundState.isOf(Blocks.ICE) &&
             !groundState.isOf(Blocks.PACKED_ICE) &&
-            !groundState.isOf(Blocks.BLUE_ICE);
-        
-        if (validGround && isPassable(world, standPos) && isPassable(world, headPos)) {
+            !groundState.isOf(Blocks.BLUE_ICE) &&
+            standState.isAir() &&
+            headState.isAir()) {
             return new BlockPos(x, y, z);
         }
         
