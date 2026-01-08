@@ -26,6 +26,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.world.rule.GameRules;
 import xyz.nucleoid.fantasy.Fantasy;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.RuntimeWorldHandle;
@@ -531,10 +532,13 @@ public class RunManager {
         RuntimeWorldConfig overworldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD)
                 .setDifficulty(Difficulty.NORMAL)
+                .setGameRule(GameRules.ADVANCE_TIME, true)
                 .setSeed(currentSeed)
                 .setGenerator(vanillaOverworld.getChunkManager().getChunkGenerator());
         
         overworldHandle = fantasy.openTemporaryWorld(overworldConfig);
+        // Set time to 0 (dawn) like vanilla Minecraft new worlds start
+        overworldHandle.asWorld().setTimeOfDay(0);
         SoulLink.LOGGER.info("Created temporary overworld: {}", overworldHandle.getRegistryKey().getValue());
         
         // Create temporary Nether
@@ -729,6 +733,12 @@ public class RunManager {
         
         if (gameState != GameState.RUNNING) {
             return;
+        }
+        
+        // Manually advance time in temporary overworld (Fantasy worlds don't auto-tick time)
+        if (overworldHandle != null) {
+            ServerWorld tempOverworld = overworldHandle.asWorld();
+            tempOverworld.setTimeOfDay(tempOverworld.getTimeOfDay() + 1);
         }
         
         // Wait for player input (movement or camera) to start timer
