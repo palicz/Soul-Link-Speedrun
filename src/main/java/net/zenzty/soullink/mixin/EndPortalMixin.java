@@ -5,10 +5,12 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.block.EndPortalBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -94,10 +96,31 @@ public abstract class EndPortalMixin {
             return;
         }
 
+        // Trigger advancement for players using the vanilla dimension keys
+        final boolean goingToEnd = isInTempOverworld;
+
         cir.setReturnValue(new TeleportTarget(destinationWorld, spawnPos, Vec3d.ZERO, // Reset
                                                                                       // velocity
-                entity.getYaw(), entity.getPitch(), TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
-                        .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
+                entity.getYaw(), entity.getPitch(),
+                TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
+                        .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
+                        .then(teleportedEntity -> triggerEndAdvancement(teleportedEntity,
+                                goingToEnd))));
+    }
+
+    /**
+     * Triggers the changed_dimension advancement for End portal travel. Uses vanilla dimension keys
+     * so the advancement system recognizes it.
+     */
+    @Unique
+    private void triggerEndAdvancement(Entity entity, boolean goingToEnd) {
+        if (entity instanceof ServerPlayerEntity player) {
+            RegistryKey<World> from = goingToEnd ? World.OVERWORLD : World.END;
+            RegistryKey<World> to = goingToEnd ? World.END : World.OVERWORLD;
+            Criteria.CHANGED_DIMENSION.trigger(player, from, to);
+            SoulLink.LOGGER.info("Triggered End advancement for {}: {} -> {}",
+                    player.getName().getString(), from.getValue(), to.getValue());
+        }
     }
 
     /**

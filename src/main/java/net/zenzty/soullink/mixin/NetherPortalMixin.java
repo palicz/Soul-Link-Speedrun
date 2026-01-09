@@ -3,14 +3,17 @@ package net.zenzty.soullink.mixin;
 import java.util.Comparator;
 import java.util.Optional;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.NetherPortalBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
@@ -82,10 +85,15 @@ public abstract class NetherPortalMixin {
             Vec3d spawnPos = findSafeSpawnInPortal(destinationWorld, portalPos);
             SoulLink.LOGGER.info("Using existing portal at {}, spawn at {}", portalPos, spawnPos);
 
+            // Trigger advancement for players using the vanilla dimension keys
+            final boolean goingToNether = currentWorldKey.equals(tempOverworld);
+
             cir.setReturnValue(new TeleportTarget(destinationWorld, spawnPos, entity.getVelocity(),
                     entity.getYaw(), entity.getPitch(),
                     TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
-                            .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
+                            .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
+                            .then(teleportedEntity -> triggerNetherAdvancement(teleportedEntity,
+                                    goingToNether))));
             return;
         }
 
@@ -98,10 +106,30 @@ public abstract class NetherPortalMixin {
             Vec3d spawnPos = getPortalCenter(rect);
             SoulLink.LOGGER.info("Created new portal at {}, spawn at {}", rect.lowerLeft, spawnPos);
 
+            // Trigger advancement for players using the vanilla dimension keys
+            final boolean goingToNether = currentWorldKey.equals(tempOverworld);
+
             cir.setReturnValue(new TeleportTarget(destinationWorld, spawnPos, entity.getVelocity(),
                     entity.getYaw(), entity.getPitch(),
                     TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
-                            .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)));
+                            .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
+                            .then(teleportedEntity -> triggerNetherAdvancement(teleportedEntity,
+                                    goingToNether))));
+        }
+    }
+
+    /**
+     * Triggers the changed_dimension advancement for nether portal travel. Uses vanilla dimension
+     * keys so the advancement system recognizes it.
+     */
+    @Unique
+    private void triggerNetherAdvancement(Entity entity, boolean goingToNether) {
+        if (entity instanceof ServerPlayerEntity player) {
+            RegistryKey<World> from = goingToNether ? World.OVERWORLD : World.NETHER;
+            RegistryKey<World> to = goingToNether ? World.NETHER : World.OVERWORLD;
+            Criteria.CHANGED_DIMENSION.trigger(player, from, to);
+            SoulLink.LOGGER.info("Triggered nether advancement for {}: {} -> {}",
+                    player.getName().getString(), from.getValue(), to.getValue());
         }
     }
 
