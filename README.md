@@ -1,62 +1,126 @@
-# Soul Link Speedrun
+![banner](https://cdn.modrinth.com/data/cached_images/958904a0e1dddb29f37a4fee128cd30725d8075b.png)
 
-A Fabric mod for Minecraft 1.21.11 that transforms multiplayer survival into a cooperative roguelike speedrun experience with shared health and hunger mechanics.
+<p align="center">
+  <a href="https://github.com/palicz/Soul-Link-Speedrun">
+    <img src="https://cdn.modrinth.com/data/cached_images/14bb5f6380dbf0e9a0bc20179ef4d9728b0f88d9.png" alt="github_link">
+  </a>
+  <a href="https://modrinth.com/mod/soul-link-speedrun">
+    <img src="https://cdn.modrinth.com/data/cached_images/2df5ae65196aa7a4a0aef20e208c0005ff06471f.png" alt="modrinth_link">
+  </a>
+</p>
 
-## Features
+![divider](https://cdn.modrinth.com/data/cached_images/6b10e03ad4f06a7b854f068a2fda11901036faa7.png)
 
-### Soul Link System
-All players share the same health, hunger, and saturation. When one player takes damage or eats food, all players are affected. This creates a true cooperative experience where teamwork is essential.
+![about](https://cdn.modrinth.com/data/cached_images/9872283263bf494fa11d3c3b54326d1b5f64c0ba_0.webp)
 
-### Temporary World Generation
-Each run creates completely isolated temporary worlds for the overworld, nether, and end dimensions. Worlds are automatically cleaned up after each run, ensuring a fresh start every time.
+Transforms multiplayer survival into a cooperative speedrun experience where all players **share the same health, hunger, and saturation**. Each run generates completely **isolated temporary worlds** that are automatically cleaned up after completion, ensuring a fresh start every time.
 
-### Speedrun Timer
-A precise two-phase timer system that:
-- Displays elapsed time in the action bar (HH:MM:SS format)
-- Tracks time from start until victory or defeat
+Work together with your team to defeat the Ender Dragon as fast as possible. If **any player dies, the run ends for everyone** - making teamwork and protection essential. The mod features a precise two-phase timer system that tracks your speedrun time from the moment you start until victory or defeat.
 
-### Game Mechanics
-- **Death = Game Over**: If any player dies, the run ends for everyone
-- **Victory Condition**: Defeat the Ender Dragon together to win
-- **Late Join Support**: Players joining mid-run are automatically teleported to the active run
+_Since this mod is server-side only, players connecting to a server with this mod do not need to install it on their client. It works seamlessly with any Fabric server setup._
 
-## Commands
+![divider](https://cdn.modrinth.com/data/cached_images/6b10e03ad4f06a7b854f068a2fda11901036faa7.png)
 
-- `/start` - Begin a new speedrun attempt (generates new worlds)
-- `/stoprun` - Admin command to stop the current run (requires operator permissions)
+![features](https://cdn.modrinth.com/data/cached_images/95c27e9d0693b6d1f5eba2a6792c9a36bae2c09b_0.webp)
+
+Give your multiplayer server a true cooperative challenge.
+
+### Shared Vitality: Health & Hunger
+All players share a single, synchronized pool of Health, Hunger, and Saturation. If one player takes damage, everyone takes damage. When one player eats, everyone’s hunger bar refills.
+
+<div align="center">
+
+![health_sync](https://cdn.modrinth.com/data/cached_images/d7b69a48fd37272862fa6022f2a26066ca1d7164.gif)
+
+_**Player A** gets attacked by zombies and **Player B** takes damage too_
+
+![eating_sync](https://cdn.modrinth.com/data/cached_images/c704a23b7d2fa626396ab52bfe5f4016e100da3b.gif)
+
+_**Player A** eats and **Player B**'s hunger reduces too_
+
+</div>
+
+### One Death, All Dead
+If a single player makes a fatal mistake -like falling into lava- the run ends immediately for everyone.
+
+<div align="center">
+
+![death](https://cdn.modrinth.com/data/cached_images/daf8fee661cf4686cedd8f8c31a63fb0b5ef4846.gif)
+
+</div>
+
+### The Objective
+The run is only considered a success once the Ender Dragon is defeated.
+
+<div align="center">
+  
+![victory](https://cdn.modrinth.com/data/cached_images/2e1cff3f589246d1cc8d553fd5113abefde2d1a4.gif)
+
+</div>
+
+### Game mechanics & World generation
+
+- A live timer tracks your run in the action bar and captures your final time automatically.
+- Late-joining players can hop in mid-run and instantly sync to the current state, or join fresh after a reset.
+  
+- When a run ends (via death or victory), simply click the text in chat to immediately generate a fresh world and start a new run.
+
+<div align="center">
+  
+![world_generation](https://cdn.modrinth.com/data/cached_images/33963db02e1e0c6f200463a9b92f391fd7b5e1a5.gif)
+
+</div>
+
+### Commands
+
+- `/start` - Begin a new speedrun attempt (generates fresh worlds)
+- `/stoprun` - Admin command to stop current run (requires operator)
 - `/runinfo` - Display current run state, timer, and shared stats
 
-## Installation
+<div align="center">
 
-1. Install [Fabric Loader](https://fabricmc.net/use/) 0.18.4 or later
-2. Install [Fabric API](https://modrinth.com/mod/fabric-api)
-3. Download the latest release of Soul Link Speedrun
-4. Place the mod JAR in your `mods` folder
-5. Start your server
+[![Essentials](https://cdn.modrinth.com/data/cached_images/0b42e12528e5968b59f756dd2146f0e9610f574d.png)](https://essentials.gg)
 
-## Requirements
+</div>
 
-- Minecraft 1.21.11
-- Fabric Loader >= 0.18.4
-- Fabric API
-- Java 21 or later
-- Fantasy library (included)
+![divider](https://cdn.modrinth.com/data/cached_images/6b10e03ad4f06a7b854f068a2fda11901036faa7.png)
 
-## How to Play
+![compatibilty](https://cdn.modrinth.com/data/cached_images/859644fb383acbebd77c45c94d3d1e5a71deb389.png)
 
-1. Start a server with the mod installed
-2. Players join and receive a welcome message
-3. Use `/start` to begin a new run (generates worlds with random seed)
-4. Timer starts automatically
-5. Work together with shared health and hunger
-6. Defeat the Ender Dragon to win, or die to lose
-7. After victory or defeat, use `/start` to begin a new run
+<div align="center">
 
-## Technical Details
+| Dependency | Version | Type | Note |
+| :--- | :---: | :---: | :--- |
+| **Fabric Loader** | `>=0.18.4` | Required | Minimum version 0.18.4 |
+| **Fabric API** | `*` | Required | Any version compatible with 1.21.11 |
+| **Fantasy** | `0.7.0...` | Included | Bundled in mod JAR |
 
-This mod uses the [Fantasy](https://github.com/NucleoidMC/fantasy) library for runtime world generation, allowing temporary dimensions to be created and destroyed on demand. All portal travel is intercepted and redirected to ensure players stay within the temporary world system.
+<br>
 
-## License
+| Compatibility | Status | Note |
+| :--- | :---: | :--- |
+| **Server-side** | ✅ | |
+| **Client-side** | ⚠️ | Players don't need to install the mod only the server/host |
+| Single-player | ✅ | |
+| [Essentials](https://essentials.gg) | ✅ | Only the host needs to have it installed |
+| Other Fabric mods | ✅ Generally compatible | May conflict with mods that modify health/hunger, portals, world gen, or death handling |
 
-This project is licensed under MIT License.
+</div>
 
+![divider](https://cdn.modrinth.com/data/cached_images/6b10e03ad4f06a7b854f068a2fda11901036faa7.png)
+
+![credits](https://cdn.modrinth.com/data/cached_images/674749e7f408bb9a2a4714d35641c7377265b06c.png)
+
+👤 **Author:** zenzty
+
+📄 **License:** MIT License
+
+Copyright (c) 2026 zenzty
+
+Feel free to use this mod in your Modrinth/CurseForge hosted modpacks without asking for permission.
+
+**Credits:**
+
+- Uses the [Fantasy](https://github.com/NucleoidMC/fantasy) library by NucleoidMC for runtime world generation
+
+**Source Code:** [GitHub Repository](https://github.com/zenzty/Soul-Link-Speedrun)

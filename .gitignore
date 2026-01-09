@@ -22,6 +22,7 @@ classes/
 bin/
 .classpath
 .project
+.vscode/launch.json
 
 # macos
 
