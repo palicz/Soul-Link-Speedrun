@@ -378,10 +378,17 @@ public class SoulLink implements ModInitializer {
             // Note: 'amount' is raw damage before armor reduction
             float currentHealth = player.getHealth();
 
+            // Check if player has a Totem of Undying - if so, let vanilla handle the damage
+            // The totem activates during damage processing and will save them
+            boolean hasTotem = player.getOffHandStack()
+                    .isOf(net.minecraft.item.Items.TOTEM_OF_UNDYING)
+                    || player.getMainHandStack().isOf(net.minecraft.item.Items.TOTEM_OF_UNDYING);
+
             // Conservative check - if raw damage >= health, it's likely lethal
             // This might trigger slightly early due to armor, but better safe than showing death
             // screen
-            if (currentHealth - amount <= 0) {
+            // BUT: if player has a totem, let damage through so the totem can activate
+            if (currentHealth - amount <= 0 && !hasTotem) {
                 LOGGER.info(
                         "Lethal damage detected for {} ({} damage, {} health) - triggering game over!",
                         player.getName().getString(), amount, currentHealth);
