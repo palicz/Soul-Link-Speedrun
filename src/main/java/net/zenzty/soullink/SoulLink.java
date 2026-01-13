@@ -132,7 +132,8 @@ public class SoulLink implements ModInitializer {
                     SettingsGui.open(player);
                     return Command.SINGLE_SUCCESS;
                 }
-                context.getSource().sendError(RunManager.formatMessage("Only players can use this command."));
+                context.getSource()
+                        .sendError(RunManager.formatMessage("Only players can use this command."));
                 return 0;
             }));
         });
@@ -321,6 +322,9 @@ public class SoulLink implements ModInitializer {
                 // Update run manager (handles generation, timer, etc.)
                 runManager.tick();
             }
+
+            // Process shared jumps at tick end (prevents race conditions with latency)
+            SharedJumpHandler.processJumpsAtTickEnd(server);
 
             // Periodic stats sync
             SharedStatsHandler.tickSync(server);
