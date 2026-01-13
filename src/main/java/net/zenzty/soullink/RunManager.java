@@ -6,9 +6,9 @@ import java.util.Set;
 import net.minecraft.advancement.AdvancementEntry;
 import net.minecraft.advancement.AdvancementProgress;
 import net.minecraft.advancement.PlayerAdvancementTracker;
-import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -484,6 +484,9 @@ public class RunManager {
 
         SoulLink.LOGGER.info("Starting new run...");
 
+        // Apply any pending settings (like shared jumping) before starting the run
+        Settings.getInstance().applyPendingSharedJumping();
+
         // Broadcast starting message
         server.getPlayerManager().broadcast(formatMessage("Generating new world..."), false);
 
@@ -693,7 +696,7 @@ public class RunManager {
             player.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(20.0);
             player.setHealth(player.getMaxHealth());
         }
-        
+
         // Reset hunger
         player.getHungerManager().setFoodLevel(20);
         player.getHungerManager().setSaturationLevel(5.0f);
