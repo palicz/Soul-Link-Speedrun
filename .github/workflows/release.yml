@@ -40,6 +40,7 @@ jobs:
         with:
           # Automatically grabs the change log from the tag message or generates a clean default
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'beta') }}
           files: |
             build/libs/*.jar
             !build/libs/*-sources.jar
