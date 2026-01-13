@@ -261,9 +261,8 @@ public class SoulLink implements ModInitializer {
                 .formatted(Formatting.DARK_GRAY, Formatting.STRIKETHROUGH), false);
 
         // Title
-        player.sendMessage(Text.empty().append(
-                Text.literal("SOUL LINK SPEEDRUN").formatted(Formatting.RED, Formatting.BOLD)),
-                false);
+        player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE")
+                .formatted(Formatting.RED, Formatting.BOLD)), false);
 
         // Empty line
         player.sendMessage(Text.empty(), false);
