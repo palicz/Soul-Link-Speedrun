@@ -125,6 +125,16 @@ public class SoulLink implements ModInitializer {
 
                 return Command.SINGLE_SUCCESS;
             }));
+
+            // /settings - Open the settings GUI
+            dispatcher.register(CommandManager.literal("settings").executes(context -> {
+                if (context.getSource().getEntity() instanceof ServerPlayerEntity player) {
+                    SettingsGui.open(player);
+                    return Command.SINGLE_SUCCESS;
+                }
+                context.getSource().sendError(RunManager.formatMessage("Only players can use this command."));
+                return 0;
+            }));
         });
     }
 
