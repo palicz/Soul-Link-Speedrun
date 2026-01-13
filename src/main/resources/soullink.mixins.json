@@ -11,7 +11,12 @@
 		"FireBlockMixin",
 		"NetherPortalMixin",
 		"EndPortalMixin",
-		"ServerWorldAccessor"
+		"ServerWorldAccessor",
+		"ScreenHandlerAccessor",
+		"JumpMixin",
+		"StatusEffectMixin",
+		"SpectatorInteractionMixin",
+		"AbsorptionMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
