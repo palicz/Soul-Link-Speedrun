@@ -125,6 +125,17 @@ public class SoulLink implements ModInitializer {
 
                 return Command.SINGLE_SUCCESS;
             }));
+
+            // /settings - Open the settings GUI
+            dispatcher.register(CommandManager.literal("settings").executes(context -> {
+                if (context.getSource().getEntity() instanceof ServerPlayerEntity player) {
+                    SettingsGui.open(player);
+                    return Command.SINGLE_SUCCESS;
+                }
+                context.getSource()
+                        .sendError(RunManager.formatMessage("Only players can use this command."));
+                return 0;
+            }));
         });
     }
 
@@ -250,9 +261,8 @@ public class SoulLink implements ModInitializer {
                 .formatted(Formatting.DARK_GRAY, Formatting.STRIKETHROUGH), false);
 
         // Title
-        player.sendMessage(Text.empty().append(
-                Text.literal("SOUL LINK SPEEDRUN").formatted(Formatting.RED, Formatting.BOLD)),
-                false);
+        player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE")
+                .formatted(Formatting.RED, Formatting.BOLD)), false);
 
         // Empty line
         player.sendMessage(Text.empty(), false);
@@ -311,6 +321,9 @@ public class SoulLink implements ModInitializer {
                 // Update run manager (handles generation, timer, etc.)
                 runManager.tick();
             }
+
+            // Process shared jumps at tick end (prevents race conditions with latency)
+            SharedJumpHandler.processJumpsAtTickEnd(server);
 
             // Periodic stats sync
             SharedStatsHandler.tickSync(server);

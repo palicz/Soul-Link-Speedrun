@@ -7,6 +7,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.MathHelper;
 
+// Note: Settings import is used for half heart mode max health calculations
+
 /**
  * Handles shared health, hunger, and saturation between all players. Implements the "Soul Link"
  * mechanic where all players share the same vital stats.
@@ -17,6 +19,7 @@ public class SharedStatsHandler {
     private static float sharedHealth = 20.0f;
     private static int sharedHunger = 20;
     private static float sharedSaturation = 5.0f;
+    private static float sharedAbsorption = 0.0f; // Absorption hearts (golden apples, etc)
 
     // Prevent infinite sync loops
     private static boolean isSyncing = false;
@@ -29,17 +32,34 @@ public class SharedStatsHandler {
     private static float saturationDrainAccumulator = 0.0f;
 
     /**
+     * Gets the current max health based on settings.
+     */
+    private static float getMaxHealth() {
+        return Settings.getInstance().isHalfHeartMode() ? 1.0f : 20.0f;
+    }
+
+    /**
      * Resets all shared stats to default values. Called when starting a new run.
      */
     public static void reset() {
-        sharedHealth = 20.0f;
+        // Use half heart mode max health if enabled
+        Settings settings = Settings.getInstance();
+        float maxHealth = settings.isHalfHeartMode() ? 1.0f : 20.0f;
+
+        sharedHealth = maxHealth;
         sharedHunger = 20;
         sharedSaturation = 5.0f;
+        sharedAbsorption = 0.0f;
         isSyncing = false;
         regenAccumulator = 0.0f;
         hungerDrainAccumulator = 0.0f;
         saturationDrainAccumulator = 0.0f;
-        SoulLink.LOGGER.info("Shared stats reset to defaults");
+
+        // Also reset other shared handlers
+        SharedPotionHandler.reset();
+        SharedJumpHandler.reset();
+
+        SoulLink.LOGGER.info("Shared stats reset to defaults (maxHealth={})", maxHealth);
     }
 
     /**
@@ -53,10 +73,13 @@ public class SharedStatsHandler {
         isSyncing = true;
         try {
             player.setHealth(sharedHealth);
+            player.setAbsorptionAmount(sharedAbsorption);
             player.getHungerManager().setFoodLevel(sharedHunger);
             player.getHungerManager().setSaturationLevel(sharedSaturation);
-            SoulLink.LOGGER.debug("Synced {} to shared stats: HP={}, Food={}, Sat={}",
-                    player.getName().getString(), sharedHealth, sharedHunger, sharedSaturation);
+            SoulLink.LOGGER.debug(
+                    "Synced {} to shared stats: HP={}, Absorption={}, Food={}, Sat={}",
+                    player.getName().getString(), sharedHealth, sharedAbsorption, sharedHunger,
+                    sharedSaturation);
         } finally {
             isSyncing = false;
         }
@@ -100,7 +123,7 @@ public class SharedStatsHandler {
             float oldHealth = sharedHealth;
 
             // Update the master health to match the damaged player's health
-            sharedHealth = MathHelper.clamp(newHealth, 0.0f, 20.0f);
+            sharedHealth = MathHelper.clamp(newHealth, 0.0f, getMaxHealth());
 
             // Check for death condition
             if (sharedHealth <= 0) {
@@ -191,7 +214,7 @@ public class SharedStatsHandler {
         isSyncing = true;
         try {
             float oldHealth = sharedHealth;
-            sharedHealth = MathHelper.clamp(newHealth, 0.0f, 20.0f);
+            sharedHealth = MathHelper.clamp(newHealth, 0.0f, getMaxHealth());
 
             // Only sync if health increased
             if (sharedHealth > oldHealth) {
@@ -215,6 +238,61 @@ public class SharedStatsHandler {
 
                 SoulLink.LOGGER.debug("Healing synced: {} -> {}", oldHealth, sharedHealth);
             }
+
+        } finally {
+            isSyncing = false;
+        }
+    }
+
+    /**
+     * Called when a player's absorption amount changes (from golden apples, etc). Updates the
+     * master absorption and syncs to all other players.
+     */
+    public static void onAbsorptionChanged(ServerPlayerEntity changedPlayer, float newAbsorption) {
+        if (isSyncing)
+            return;
+
+        RunManager runManager = RunManager.getInstance();
+        if (runManager == null || !runManager.isRunActive())
+            return;
+
+        ServerWorld playerWorld = getPlayerWorld(changedPlayer);
+        if (playerWorld == null)
+            return;
+
+        if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
+            return;
+
+        // Only sync if absorption actually changed
+        if (Math.abs(newAbsorption - sharedAbsorption) < 0.1f)
+            return;
+
+        isSyncing = true;
+        try {
+            float oldAbsorption = sharedAbsorption;
+            sharedAbsorption = MathHelper.clamp(newAbsorption, 0.0f, 20.0f);
+
+            MinecraftServer server = runManager.getServer();
+            if (server == null)
+                return;
+
+            // Sync to all other players
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                if (player == changedPlayer)
+                    continue;
+
+                ServerWorld otherWorld = getPlayerWorld(player);
+                if (otherWorld == null)
+                    continue;
+
+                if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                    continue;
+
+                player.setAbsorptionAmount(sharedAbsorption);
+            }
+
+            SoulLink.LOGGER.debug("Absorption synced: {} -> {} (from {})", oldAbsorption,
+                    sharedAbsorption, changedPlayer.getName().getString());
 
         } finally {
             isSyncing = false;
@@ -276,7 +354,7 @@ public class SharedStatsHandler {
             isSyncing = true;
             try {
                 float oldHealth = sharedHealth;
-                sharedHealth = MathHelper.clamp(sharedHealth + healToApply, 0.0f, 20.0f);
+                sharedHealth = MathHelper.clamp(sharedHealth + healToApply, 0.0f, getMaxHealth());
 
                 if (sharedHealth > oldHealth) {
                     // Sync to all players
@@ -474,11 +552,15 @@ public class SharedStatsHandler {
 
                 // If player's values drift from master, correct them
                 float playerHealth = player.getHealth();
+                float playerAbsorption = player.getAbsorptionAmount();
                 int playerFood = player.getHungerManager().getFoodLevel();
                 float playerSat = player.getHungerManager().getSaturationLevel();
 
                 if (Math.abs(playerHealth - sharedHealth) > 0.5f) {
                     player.setHealth(sharedHealth);
+                }
+                if (Math.abs(playerAbsorption - sharedAbsorption) > 0.5f) {
+                    player.setAbsorptionAmount(sharedAbsorption);
                 }
                 if (playerFood != sharedHunger) {
                     player.getHungerManager().setFoodLevel(sharedHunger);
@@ -499,6 +581,14 @@ public class SharedStatsHandler {
         return isSyncing;
     }
 
+    /**
+     * Sets the syncing flag. Used by other shared handlers (like SharedPotionHandler) to prevent
+     * heal/damage operations from triggering additional syncs.
+     */
+    public static void setSyncing(boolean syncing) {
+        isSyncing = syncing;
+    }
+
     // Getters
 
     public static float getSharedHealth() {
@@ -517,7 +607,7 @@ public class SharedStatsHandler {
      * Force sets the shared health (for admin/debug purposes).
      */
     public static void setSharedHealth(float health, MinecraftServer server) {
-        sharedHealth = MathHelper.clamp(health, 0.0f, 20.0f);
+        sharedHealth = MathHelper.clamp(health, 0.0f, getMaxHealth());
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null)
