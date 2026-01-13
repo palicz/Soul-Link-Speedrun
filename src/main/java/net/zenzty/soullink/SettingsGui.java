@@ -4,13 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
-import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.potion.Potions;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
@@ -141,10 +139,20 @@ public class SettingsGui {
             };
 
             item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                    Text.literal("Current: ").formatted(Formatting.GRAY).append(
-                            Text.literal(difficultyName).formatted(difficultyColor)),
+                    Text.literal("Change to: ")
+                            .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                            .append(Text
+                                    .literal(difficultyName)
+                                    .setStyle(Style.EMPTY
+                                            .withItalic(false).withFormatting(difficultyColor))),
                     Text.empty(),
-                    Text.literal("Click to cycle difficulty").formatted(Formatting.DARK_GRAY))));
+                    Text.literal("Current: ")
+                            .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                            .append(Text.literal(getDifficultyName(original.difficulty()))
+                                    .setStyle(Style.EMPTY.withItalic(false)
+                                            .withFormatting(Formatting.WHITE))),
+                    Text.empty(), Text.literal("Click to cycle difficulty").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
 
             return item;
         }
@@ -152,49 +160,53 @@ public class SettingsGui {
         private ItemStack createHalfHeartItem() {
             ItemStack item = new ItemStack(pendingHalfHeart ? Items.GOLDEN_APPLE : Items.APPLE);
             item.set(DataComponentTypes.CUSTOM_NAME,
-                    createItemName("Half Heart Mode", Formatting.LIGHT_PURPLE, Formatting.BOLD));
+                    createItemName("Half Hearted Mode", Formatting.LIGHT_PURPLE, Formatting.BOLD));
 
-            item.set(DataComponentTypes.LORE,
-                    new LoreComponent(List.of(
-                            Text.literal("Status: ").formatted(Formatting.GRAY)
-                                    .append(pendingHalfHeart
-                                            ? Text.literal("ENABLED").formatted(Formatting.GREEN)
-                                            : Text.literal("DISABLED").formatted(Formatting.RED)),
-                            Text.empty(),
-                            Text.literal("Players have only 1 health point!")
-                                    .formatted(Formatting.DARK_GRAY),
-                            Text.literal("Click to toggle").formatted(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                    Text.literal("Status: ")
+                            .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                            .append(pendingHalfHeart
+                                    ? Text.literal("ENABLED")
+                                            .setStyle(Style.EMPTY.withItalic(false)
+                                                    .withFormatting(Formatting.GREEN))
+                                    : Text.literal("DISABLED")
+                                            .setStyle(Style.EMPTY.withItalic(false)
+                                                    .withFormatting(Formatting.RED))),
+                    Text.empty(),
+                    Text.literal("Players have only 1 health point!").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.empty(), Text.literal("Click to toggle").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
 
             return item;
         }
 
         private ItemStack createSharedPotionsItem() {
-            ItemStack item = new ItemStack(Items.SPLASH_POTION);
-
-            // Set to healing potion when enabled
-            if (pendingSharedPotions) {
-                item.set(DataComponentTypes.POTION_CONTENTS,
-                        new PotionContentsComponent(Potions.HEALING));
-            }
+            ItemStack item =
+                    new ItemStack(pendingSharedPotions ? Items.DRAGON_BREATH : Items.GLASS_BOTTLE);
 
             item.set(DataComponentTypes.CUSTOM_NAME,
-                    createItemName("Shared Potions", Formatting.AQUA, Formatting.BOLD));
+                    createItemName("Shared Potions Mode", Formatting.AQUA, Formatting.BOLD));
 
-            item.set(DataComponentTypes.LORE,
-                    new LoreComponent(List.of(
-                            Text.literal("Status: ").formatted(Formatting.GRAY)
-                                    .append(pendingSharedPotions
-                                            ? Text.literal("ENABLED").formatted(Formatting.GREEN)
-                                            : Text.literal("DISABLED").formatted(Formatting.RED)),
-                            Text.empty(),
-                            Text.literal("Potion effects are shared between")
-                                    .formatted(Formatting.DARK_GRAY),
-                            Text.literal("all players. Instant potions affect")
-                                    .formatted(Formatting.DARK_GRAY),
-                            Text.literal("one player then sync to others.")
-                                    .formatted(Formatting.DARK_GRAY),
-                            Text.empty(),
-                            Text.literal("Click to toggle").formatted(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                    Text.literal("Status: ")
+                            .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                            .append(pendingSharedPotions
+                                    ? Text.literal("ENABLED")
+                                            .setStyle(Style.EMPTY.withItalic(false)
+                                                    .withFormatting(Formatting.GREEN))
+                                    : Text.literal("DISABLED")
+                                            .setStyle(Style.EMPTY.withItalic(false)
+                                                    .withFormatting(Formatting.RED))),
+                    Text.empty(),
+                    Text.literal("Potion effects are shared between").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.literal("all players. Instant potions affect").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.literal("one player then sync to others.").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.empty(), Text.literal("Click to toggle").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
 
             return item;
         }
@@ -203,18 +215,23 @@ public class SettingsGui {
             ItemStack item =
                     new ItemStack(pendingSharedJumping ? Items.RABBIT_FOOT : Items.FEATHER);
             item.set(DataComponentTypes.CUSTOM_NAME,
-                    createItemName("Shared Jumping", Formatting.YELLOW, Formatting.BOLD));
+                    createItemName("Shared Jumping Mode", Formatting.YELLOW, Formatting.BOLD));
 
-            item.set(DataComponentTypes.LORE,
-                    new LoreComponent(List.of(
-                            Text.literal("Status: ").formatted(Formatting.GRAY)
-                                    .append(pendingSharedJumping
-                                            ? Text.literal("ENABLED").formatted(Formatting.GREEN)
-                                            : Text.literal("DISABLED").formatted(Formatting.RED)),
-                            Text.empty(),
-                            Text.literal("Logs player jumps (experimental)")
-                                    .formatted(Formatting.DARK_GRAY),
-                            Text.literal("Click to toggle").formatted(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                    Text.literal("Status: ")
+                            .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                            .append(pendingSharedJumping
+                                    ? Text.literal("ENABLED")
+                                            .setStyle(Style.EMPTY.withItalic(false)
+                                                    .withFormatting(Formatting.GREEN))
+                                    : Text.literal("DISABLED")
+                                            .setStyle(Style.EMPTY.withItalic(false)
+                                                    .withFormatting(Formatting.RED))),
+                    Text.empty(),
+                    Text.literal("If one player jumps, all players jump.").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.empty(), Text.literal("Click to toggle").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
 
             return item;
         }
@@ -227,7 +244,8 @@ public class SettingsGui {
             List<Text> loreLines = new ArrayList<>();
 
             // Current Settings header
-            loreLines.add(Text.literal("Current Settings:").formatted(Formatting.WHITE));
+            loreLines.add(Text.literal("Current Settings:")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.WHITE)));
 
             // Difficulty
             String diffName = getDifficultyName(pendingDifficulty);
@@ -237,30 +255,44 @@ public class SettingsGui {
                 case HARD -> Formatting.RED;
                 default -> Formatting.WHITE;
             };
-            loreLines.add(Text.literal("  • Difficulty: ").formatted(Formatting.GRAY)
-                    .append(Text.literal(diffName).formatted(diffColor)));
+            loreLines.add(Text.literal("  • Difficulty: ")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                    .append(Text.literal(diffName)
+                            .setStyle(Style.EMPTY.withItalic(false).withFormatting(diffColor))));
 
             // Half-Heart Mode
-            loreLines.add(Text.literal("  • Half-Heart Mode: ").formatted(Formatting.GRAY)
-                    .append(pendingHalfHeart ? Text.literal("Enabled").formatted(Formatting.GREEN)
-                            : Text.literal("Disabled").formatted(Formatting.RED)));
+            loreLines.add(Text.literal("  • Half-Heart Mode: ")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
+                    .append(pendingHalfHeart
+                            ? Text.literal("Enabled").setStyle(
+                                    Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN))
+                            : Text.literal("Disabled").setStyle(
+                                    Style.EMPTY.withItalic(false).withFormatting(Formatting.RED))));
 
             // Shared Effects
-            loreLines.add(Text.literal("  • Shared Effects: ").formatted(Formatting.GRAY)
+            loreLines.add(Text.literal("  • Shared Effects: ")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                     .append(pendingSharedPotions
-                            ? Text.literal("Enabled").formatted(Formatting.GREEN)
-                            : Text.literal("Disabled").formatted(Formatting.RED)));
+                            ? Text.literal("Enabled").setStyle(
+                                    Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN))
+                            : Text.literal("Disabled").setStyle(
+                                    Style.EMPTY.withItalic(false).withFormatting(Formatting.RED))));
 
             // Shared Jump
-            loreLines.add(Text.literal("  • Shared Jump: ").formatted(Formatting.GRAY)
+            loreLines.add(Text.literal("  • Shared Jump: ")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                     .append(pendingSharedJumping
-                            ? Text.literal("Enabled").formatted(Formatting.GREEN)
-                            : Text.literal("Disabled").formatted(Formatting.RED)));
+                            ? Text.literal("Enabled").setStyle(
+                                    Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN))
+                            : Text.literal("Disabled").setStyle(
+                                    Style.EMPTY.withItalic(false).withFormatting(Formatting.RED))));
 
             loreLines.add(Text.empty());
-            loreLines.add(Text.literal("⚠ Settings apply next run!").formatted(Formatting.YELLOW));
+            loreLines.add(Text.literal("⚠ Settings apply next run!")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.YELLOW)));
             loreLines.add(Text.empty());
-            loreLines.add(Text.literal("Click to save and close.").formatted(Formatting.GRAY));
+            loreLines.add(Text.literal("Click to save and close.")
+                    .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)));
 
             item.set(DataComponentTypes.LORE, new LoreComponent(loreLines));
 
@@ -503,10 +535,14 @@ public class SettingsGui {
                 String oldDiff = getDifficultyName(orig.difficulty());
                 String newDiff = getDifficultyName(settingsInventory.getPendingDifficulty());
                 Text changeMsg = Text.empty().append(RunManager.getPrefix())
-                        .append(Text.literal("  • Difficulty: ").formatted(Formatting.GRAY))
-                        .append(Text.literal(oldDiff).formatted(Formatting.RED))
-                        .append(Text.literal(" → ").formatted(Formatting.DARK_GRAY))
-                        .append(Text.literal(newDiff).formatted(Formatting.GREEN));
+                        .append(Text.literal("  • Difficulty: ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY)))
+                        .append(Text.literal(oldDiff).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.RED)))
+                        .append(Text.literal(" → ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))
+                        .append(Text.literal(newDiff).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN)));
                 server.getPlayerManager().broadcast(changeMsg, false);
             }
 
@@ -514,10 +550,14 @@ public class SettingsGui {
                 String oldVal = orig.halfHeartMode() ? "ON" : "OFF";
                 String newVal = settingsInventory.isPendingHalfHeart() ? "ON" : "OFF";
                 Text changeMsg = Text.empty().append(RunManager.getPrefix())
-                        .append(Text.literal("  • Half Heart Mode: ").formatted(Formatting.GRAY))
-                        .append(Text.literal(oldVal).formatted(Formatting.RED))
-                        .append(Text.literal(" → ").formatted(Formatting.DARK_GRAY))
-                        .append(Text.literal(newVal).formatted(Formatting.GREEN));
+                        .append(Text.literal("  • Half Heart Mode: ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY)))
+                        .append(Text.literal(oldVal).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.RED)))
+                        .append(Text.literal(" → ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))
+                        .append(Text.literal(newVal).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN)));
                 server.getPlayerManager().broadcast(changeMsg, false);
             }
 
@@ -525,10 +565,14 @@ public class SettingsGui {
                 String oldVal = orig.sharedPotions() ? "ON" : "OFF";
                 String newVal = settingsInventory.isPendingSharedPotions() ? "ON" : "OFF";
                 Text changeMsg = Text.empty().append(RunManager.getPrefix())
-                        .append(Text.literal("  • Shared Potions: ").formatted(Formatting.GRAY))
-                        .append(Text.literal(oldVal).formatted(Formatting.RED))
-                        .append(Text.literal(" → ").formatted(Formatting.DARK_GRAY))
-                        .append(Text.literal(newVal).formatted(Formatting.GREEN));
+                        .append(Text.literal("  • Shared Potions: ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY)))
+                        .append(Text.literal(oldVal).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.RED)))
+                        .append(Text.literal(" → ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))
+                        .append(Text.literal(newVal).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN)));
                 server.getPlayerManager().broadcast(changeMsg, false);
             }
 
@@ -536,10 +580,14 @@ public class SettingsGui {
                 String oldVal = orig.sharedJumping() ? "ON" : "OFF";
                 String newVal = settingsInventory.isPendingSharedJumping() ? "ON" : "OFF";
                 Text changeMsg = Text.empty().append(RunManager.getPrefix())
-                        .append(Text.literal("  • Shared Jumping: ").formatted(Formatting.GRAY))
-                        .append(Text.literal(oldVal).formatted(Formatting.RED))
-                        .append(Text.literal(" → ").formatted(Formatting.DARK_GRAY))
-                        .append(Text.literal(newVal).formatted(Formatting.GREEN));
+                        .append(Text.literal("  • Shared Jumping: ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY)))
+                        .append(Text.literal(oldVal).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.RED)))
+                        .append(Text.literal(" → ").setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))
+                        .append(Text.literal(newVal).setStyle(
+                                Style.EMPTY.withItalic(false).withFormatting(Formatting.GREEN)));
                 server.getPlayerManager().broadcast(changeMsg, false);
             }
 
