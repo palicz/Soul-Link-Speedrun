@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -136,6 +137,27 @@ public class SoulLink implements ModInitializer {
                         .sendError(RunManager.formatMessage("Only players can use this command."));
                 return 0;
             }));
+
+            // /reset - Manually reset the current run
+            // Command doesn't require gamemaster permissions, so any player can use it during an
+            // active run.
+            dispatcher.register(CommandManager.literal("reset").executes(context -> {
+                RunManager runManager = RunManager.getInstance();
+
+                if (runManager == null || !runManager.isRunActive()) {
+                    context.getSource()
+                            .sendError(RunManager.formatMessage("No active run to reset."));
+                    return 0;
+                }
+
+                // Perform the reset first
+                runManager.triggerGameOver();
+
+                // Broadcast reset message to all players after successful reset
+                runManager.getServer().getPlayerManager()
+                        .broadcast(RunManager.formatMessage("Run has been reset."), false);
+                return Command.SINGLE_SUCCESS;
+            }));
         });
     }
 
@@ -255,9 +277,25 @@ public class SoulLink implements ModInitializer {
      * Sends the welcome message to a player explaining the mod.
      */
     private void sendWelcomeMessage(ServerPlayerEntity player) {
-        // Title
-        player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE")
-                .formatted(Formatting.RED, Formatting.BOLD)), false);
+
+        // Title - Show beta version info only if version contains "beta"
+        var container = FabricLoader.getInstance().getModContainer(MOD_ID);
+        if (container.isPresent()) {
+            String version = container.get().getMetadata().getVersion().getFriendlyString();
+            if (version.contains("beta")) {
+                player.sendMessage(Text.empty()
+                        .append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE " + version)
+                                .formatted(Formatting.RED, Formatting.BOLD)),
+                        false);
+            } else {
+                player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN")
+                        .formatted(Formatting.RED, Formatting.BOLD)), false);
+            }
+        } else {
+            player.sendMessage(Text.empty().append(
+                    Text.literal("SOUL LINK SPEEDRUN").formatted(Formatting.RED, Formatting.BOLD)),
+                    false);
+        }
 
         // Empty line
         player.sendMessage(Text.empty(), false);
