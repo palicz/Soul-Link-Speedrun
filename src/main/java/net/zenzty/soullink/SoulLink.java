@@ -255,11 +255,6 @@ public class SoulLink implements ModInitializer {
      * Sends the welcome message to a player explaining the mod.
      */
     private void sendWelcomeMessage(ServerPlayerEntity player) {
-        // Header line
-        player.sendMessage(Text
-                .literal("                                                                      ")
-                .formatted(Formatting.DARK_GRAY, Formatting.STRIKETHROUGH), false);
-
         // Title
         player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE")
                 .formatted(Formatting.RED, Formatting.BOLD)), false);
@@ -301,10 +296,17 @@ public class SoulLink implements ModInitializer {
                                 Text.literal("Start a new run").formatted(Formatting.GRAY)))))
                 .append(Text.literal(" to begin.").formatted(Formatting.GRAY)), false);
 
-        // Footer line
-        player.sendMessage(Text
-                .literal("                                                                      ")
-                .formatted(Formatting.DARK_GRAY, Formatting.STRIKETHROUGH), false);
+        // Empty line
+        player.sendMessage(Text.empty(), false);
+
+        // Settings tip
+        player.sendMessage(Text.empty().append(Text.literal("TIP: ").formatted(Formatting.YELLOW))
+                .append(Text.literal("Customize your next run with ").formatted(Formatting.GRAY))
+                .append(Text.literal("/settings").setStyle(Style.EMPTY.withColor(Formatting.GOLD)
+                        .withClickEvent(new ClickEvent.RunCommand("/settings"))
+                        .withHoverEvent(new HoverEvent.ShowText(
+                                Text.literal("Open run options").formatted(Formatting.GRAY)))))
+                .append(Text.literal(".").formatted(Formatting.GRAY)), false);
     }
 
     /**
