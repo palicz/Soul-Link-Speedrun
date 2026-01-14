@@ -1,4 +1,4 @@
-package net.zenzty.soullink;
+package net.zenzty.soullink.server.health;
 
 import java.util.List;
 import net.minecraft.entity.damage.DamageSource;
@@ -6,6 +6,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.MathHelper;
+import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.settings.Settings;
 
 // Note: Settings import is used for half heart mode max health calculations
 
@@ -43,8 +46,7 @@ public class SharedStatsHandler {
      */
     public static void reset() {
         // Use half heart mode max health if enabled
-        Settings settings = Settings.getInstance();
-        float maxHealth = settings.isHalfHeartMode() ? 1.0f : 20.0f;
+        float maxHealth = getMaxHealth();
 
         sharedHealth = maxHealth;
         sharedHunger = 20;
@@ -159,7 +161,7 @@ public class SharedStatsHandler {
                 server.getPlayerManager().broadcast(damageNotification, false);
 
                 for (ServerPlayerEntity player : players) {
-                    if (player == damagedPlayer)
+                    if (player == damagedPlayer || player.isSpectator() || player.isCreative())
                         continue;
 
                     ServerWorld otherWorld = getPlayerWorld(player);
@@ -179,8 +181,14 @@ public class SharedStatsHandler {
                     // The isSyncing flag prevents onPlayerHealthChanged from recursing
                     player.damage(otherWorld, syncDamage, damageAmount);
 
-                    // Ensure health is exactly what we expect (in case of any rounding)
-                    player.setHealth(sharedHealth);
+                    // Safety check: if player "died" due to local damage but shared health remains,
+                    // restore them
+                    if (!player.isAlive() && sharedHealth > 0) {
+                        player.setHealth(Math.max(1.0f, sharedHealth));
+                    } else {
+                        // Ensure health is exactly what we expect (in case of any rounding)
+                        player.setHealth(sharedHealth);
+                    }
                 }
 
                 SoulLink.LOGGER.debug("Health synced: {} -> {} (from {})", oldHealth, sharedHealth,
@@ -340,7 +348,7 @@ public class SharedStatsHandler {
         float normalizedHeal = healAmount / playerCount;
         regenAccumulator += normalizedHeal;
 
-        SoulLink.LOGGER.info(
+        SoulLink.LOGGER.debug(
                 "[REGEN DEBUG] Player {} healed {} HP, normalized to {} ({} players), accumulator now {}",
                 regenPlayer.getName().getString(), healAmount, normalizedHeal, playerCount,
                 regenAccumulator);
@@ -369,7 +377,7 @@ public class SharedStatsHandler {
                         player.setHealth(sharedHealth);
                     }
 
-                    SoulLink.LOGGER.info(
+                    SoulLink.LOGGER.debug(
                             "[REGEN DEBUG] Applied {} HP healing: {} -> {} ({} players in run)",
                             healToApply, oldHealth, sharedHealth, playerCount);
                 }
@@ -589,6 +597,20 @@ public class SharedStatsHandler {
         isSyncing = syncing;
     }
 
+    /**
+     * Executes a task with syncing temporarily disabled.
+     */
+    public static void withSyncingDisabled(Runnable task) {
+        boolean wasSyncing = isSyncing;
+        setSyncing(true); // "Syncing" means we are currently applying a sync, so ignore local
+                          // changes
+        try {
+            task.run();
+        } finally {
+            setSyncing(wasSyncing);
+        }
+    }
+
     // Getters
 
     public static float getSharedHealth() {
@@ -607,11 +629,19 @@ public class SharedStatsHandler {
      * Force sets the shared health (for admin/debug purposes).
      */
     public static void setSharedHealth(float health, MinecraftServer server) {
-        sharedHealth = MathHelper.clamp(health, 0.0f, getMaxHealth());
+        float clampedHealth = MathHelper.clamp(health, 0.0f, getMaxHealth());
+
+        if (server == null) {
+            sharedHealth = clampedHealth;
+            return;
+        }
 
         RunManager runManager = RunManager.getInstance();
-        if (runManager == null)
+        if (runManager == null || !runManager.isRunActive()) {
+            sharedHealth = clampedHealth;
             return;
+        }
+        sharedHealth = clampedHealth;
 
         isSyncing = true;
         try {
@@ -621,6 +651,10 @@ public class SharedStatsHandler {
                     continue;
 
                 if (runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
+                    // Skip spectators and creative mode players for health sync
+                    if (player.isSpectator() || player.isCreative()) {
+                        continue;
+                    }
                     player.setHealth(sharedHealth);
                 }
             }

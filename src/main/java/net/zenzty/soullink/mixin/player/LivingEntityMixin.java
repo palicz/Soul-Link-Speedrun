@@ -1,19 +1,33 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.player;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.zenzty.soullink.RunManager;
-import net.zenzty.soullink.SharedStatsHandler;
+import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.run.RunManager;
 
 /**
  * Mixin for LivingEntity to intercept healing for ServerPlayerEntity instances.
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
+
+    private static final float NATURAL_REGEN_THRESHOLD = 1.0f;
+
+    @Unique
+    private float preHealHealth;
+
+    @Inject(method = "heal", at = @At("HEAD"))
+    private void recordPreHeal(float amount, CallbackInfo ci) {
+        if ((Object) this instanceof ServerPlayerEntity player) {
+            this.preHealHealth = player.getHealth();
+        }
+    }
 
     /**
      * Intercepts healing to sync health increases to all players. Called after the heal() method
@@ -35,16 +49,22 @@ public abstract class LivingEntityMixin {
             return;
         }
 
-        // Small heal amounts (<=1.0) typically indicate natural regeneration from saturation
+        // Compute actual applied healing
+        float applied = player.getHealth() - preHealHealth;
+        if (applied <= 0)
+            return;
+
+        // Small heal amounts (<=NATURAL_REGEN_THRESHOLD) typically indicate natural regeneration
+        // from saturation. Exclude potion-based regeneration.
         // Divide by player count to normalize regen speed
-        boolean isNaturalRegen = amount <= 1.0f;
+        boolean isNaturalRegen = applied <= NATURAL_REGEN_THRESHOLD
+                && !player.hasStatusEffect(StatusEffects.REGENERATION);
         if (isNaturalRegen) {
             // Let SharedStatsHandler handle the normalized regen
-            SharedStatsHandler.onNaturalRegen(player, amount);
+            SharedStatsHandler.onNaturalRegen(player, applied);
         } else {
             // Larger heals (potions, golden apples) sync normally
-            float newHealth = player.getHealth();
-            SharedStatsHandler.onPlayerHealed(player, newHealth);
+            SharedStatsHandler.onPlayerHealed(player, player.getHealth());
         }
     }
 }

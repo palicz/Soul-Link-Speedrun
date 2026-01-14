@@ -1,4 +1,4 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.server;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -20,4 +20,3 @@ public interface ServerWorldAccessor {
     @Accessor("enderDragonFight")
     void setEnderDragonFight(EnderDragonFight fight);
 }
-

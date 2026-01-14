@@ -1,4 +1,4 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.ui;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -9,7 +9,7 @@ import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.GameMode;
-import net.zenzty.soullink.SettingsGui;
+import net.zenzty.soullink.server.settings.SettingsGui;
 
 /**
  * Mixin to allow spectators to interact with the Soul Link settings GUI. Normally, spectators
@@ -34,15 +34,17 @@ public abstract class SpectatorInteractionMixin {
         }
 
         // Check if player is using our settings GUI
-        if (player.currentScreenHandler instanceof SettingsGui.SettingsScreenHandler) {
-            SettingsGui.SettingsScreenHandler handler =
-                    (SettingsGui.SettingsScreenHandler) player.currentScreenHandler;
+        if (player.currentScreenHandler instanceof SettingsGui.SettingsScreenHandler handler) {
+            // Basic validation - check if the packet's syncId matches the current handler
+            // Most other validation (slot bounds, etc.) is handled inside onSlotClick
+            if (packet.syncId() == handler.syncId) {
+                // Delegate all logic to the handler - it will handle cursor clearing and packet
+                // sending
+                handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
 
-            // Delegate all logic to the handler - it will handle cursor clearing and packet sending
-            handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
-
-            // Cancel to prevent Minecraft's default spectator handling from blocking the click
-            ci.cancel();
+                // Cancel to prevent Minecraft's default spectator handling from blocking the click
+                ci.cancel();
+            }
         }
     }
 }

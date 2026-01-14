@@ -1,6 +1,9 @@
-package net.zenzty.soullink;
+package net.zenzty.soullink.server.settings;
 
 import net.minecraft.world.Difficulty;
+import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.run.RunState;
 
 /**
  * Holds all configurable settings for the Soul Link mod. Settings are applied on the next run when
@@ -8,7 +11,7 @@ import net.minecraft.world.Difficulty;
  */
 public class Settings {
 
-    private static Settings instance = new Settings();
+    private static final Settings instance = new Settings();
 
     // Current active settings (used during runs)
     private Difficulty difficulty = Difficulty.NORMAL;
@@ -32,7 +35,8 @@ public class Settings {
     }
 
     public void setDifficulty(Difficulty difficulty) {
-        this.difficulty = difficulty;
+        // Normalize Peaceful to Easy since mod doesn't support it
+        this.difficulty = (difficulty == Difficulty.PEACEFUL) ? Difficulty.EASY : difficulty;
     }
 
     /**
@@ -90,15 +94,14 @@ public class Settings {
      * currently active.
      */
     public void applySnapshot(SettingsSnapshot snapshot) {
-        this.difficulty = snapshot.difficulty();
+        setDifficulty(snapshot.difficulty());
         this.halfHeartMode = snapshot.halfHeartMode();
         this.sharedPotions = snapshot.sharedPotions();
 
         // Check if a run is active - if so, defer shared jumping until next run
         RunManager runManager = RunManager.getInstance();
-        boolean runActive =
-                runManager != null && (runManager.getGameState() == RunManager.GameState.RUNNING
-                        || runManager.getGameState() == RunManager.GameState.GENERATING_WORLD);
+        boolean runActive = runManager != null && (runManager.getGameState() == RunState.RUNNING
+                || runManager.getGameState() == RunState.GENERATING_WORLD);
 
         if (runActive && snapshot.sharedJumping() != this.sharedJumping) {
             // Defer the change until next run
@@ -132,10 +135,5 @@ public class Settings {
      */
     public record SettingsSnapshot(Difficulty difficulty, boolean halfHeartMode,
             boolean sharedPotions, boolean sharedJumping) {
-        public boolean equals(SettingsSnapshot other) {
-            return this.difficulty == other.difficulty && this.halfHeartMode == other.halfHeartMode
-                    && this.sharedPotions == other.sharedPotions
-                    && this.sharedJumping == other.sharedJumping;
-        }
     }
 }
