@@ -1,4 +1,4 @@
-package net.zenzty.soullink;
+package net.zenzty.soullink.server.health;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -7,6 +7,9 @@ import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.settings.Settings;
 
 /**
  * Handles shared jumping functionality. When a player jumps, forces all other players who didn't
@@ -32,8 +35,7 @@ public class SharedJumpHandler {
     // Flag to prevent processing jumps multiple times per tick
     private static boolean processingJumps = false;
 
-    // Force jump strength
-    private static final double UPWARD_FORCE = 0.50; // Upward push strength (vanilla jump is ~0.42)
+
 
     /**
      * Called when a player jumps naturally. Registers them as a jumper for this tick, but defers
@@ -117,8 +119,10 @@ public class SharedJumpHandler {
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 // Skip players not in the run
                 ServerWorld playerWorld = player.getEntityWorld();
-                if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
+                if (playerWorld == null
+                        || !runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
                     continue;
+                }
 
                 // Skip players who already jumped naturally this tick
                 if (jumpersThisTick.contains(player.getUuid()))
@@ -158,8 +162,12 @@ public class SharedJumpHandler {
             return;
         }
 
-        // Add upward velocity (like a jump)
-        player.addVelocity(0, UPWARD_FORCE, 0);
+        // Invoke vanilla jump path to trigger stats, exhaustion, and sounds
+        player.jump();
+
+        // If server->client velocity sync is still required, follow it with the packet send
+        // Note: player.jump() usually handles velocity, but server-side jump might need explicit
+        // sync for some entities
 
         // Send velocity update packet to sync with client
         player.networkHandler.sendPacket(new EntityVelocityUpdateS2CPacket(player));

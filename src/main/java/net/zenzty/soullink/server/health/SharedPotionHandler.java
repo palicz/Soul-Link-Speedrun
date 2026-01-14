@@ -1,4 +1,4 @@
-package net.zenzty.soullink;
+package net.zenzty.soullink.server.health;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,11 +14,18 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
+import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.settings.Settings;
 
 /**
  * Handles shared potion effects between all players. Instant potions (healing/harming) are applied
  * to one player (the closest) then synced via health. Duration-based effects are synced to all
  * players immediately.
+ * 
+ * NOTE: This handler currently only handles instant damage (harming) effects to ensure shared
+ * health is deducted immediately. Non-instant effects are generally handled by Minecraft's potion
+ * logic and then synced via our mixins if needed.
  */
 public class SharedPotionHandler {
 
@@ -26,6 +33,7 @@ public class SharedPotionHandler {
     private static boolean isSyncing = false;
 
     // Track which effects have already been synced to prevent duplicates
+    // Cleared at the end of the tick via server.execute().
     private static final Set<String> recentlySyncedEffects = new HashSet<>();
 
     // Track pending instant effects for the current tick
@@ -36,7 +44,7 @@ public class SharedPotionHandler {
     private static long currentTick = -1;
 
     // Track which players have been chosen for each splash event this tick
-    private static final Set<UUID> chosenPlayersThisTick = new HashSet<>();
+
 
     /**
      * Represents a pending splash event with multiple affected players.
@@ -84,30 +92,24 @@ public class SharedPotionHandler {
             processed = true;
         }
 
-        boolean isClosestPlayer(UUID playerUuid) {
-            if (!processed) {
-                calculateClosestPlayer();
-            }
-            return playerUuid.equals(closestPlayer);
-        }
     }
 
     /**
      * Checks if an effect is an instant effect (like healing or harming).
      */
     public static boolean isInstantEffect(RegistryEntry<StatusEffect> effect) {
-        return effect == StatusEffects.INSTANT_HEALTH || effect == StatusEffects.INSTANT_DAMAGE;
+        return effect.getKey().equals(StatusEffects.INSTANT_HEALTH.getKey())
+                || effect.getKey().equals(StatusEffects.INSTANT_DAMAGE.getKey());
     }
 
     /**
      * Updates the tick counter and cleans up old splash events.
      */
     public static void onTick(MinecraftServer server) {
-        long newTick = server.getOverworld().getTime();
+        long newTick = server.getTicks();
         if (newTick != currentTick) {
             // New tick - clean up old splash events
             pendingSplashEvents.clear();
-            chosenPlayersThisTick.clear();
             currentTick = newTick;
         }
     }
@@ -143,15 +145,17 @@ public class SharedPotionHandler {
 
         RegistryEntry<StatusEffect> effectType = effect.getEffectType();
 
-        // Instant healing is excluded from shared effects - let it work normally
-        // Each player hit by the splash potion gets healed independently
-        if (effectType == StatusEffects.INSTANT_HEALTH) {
-            return true;
-        }
-
-        // Handle instant damage - only allow the closest player to receive it
-        if (effectType == StatusEffects.INSTANT_DAMAGE) {
-            return handleInstantEffect(player, effect, runManager);
+        // Handle instant effects (healing and damage) - only allow the closest player to receive it
+        if (isInstantEffect(effectType)) {
+            try {
+                return handleInstantEffect(player, effect, runManager);
+            } catch (RuntimeException r) {
+                throw r;
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Failed to handle instant effect - allowing vanilla behavior",
+                        e);
+                return true;
+            }
         }
 
         // For duration-based effects, sync to all other players
@@ -230,45 +234,38 @@ public class SharedPotionHandler {
             return;
 
         // Find the closest player and apply the effect only to them
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (player.getUuid().equals(closestPlayerUuid)) {
-                // Apply the instant effect directly using the heal/damage method
-                // Use SharedStatsHandler.setSyncing() to prevent heal/damage from triggering sync
-                SharedStatsHandler.setSyncing(true);
-                try {
-                    RegistryEntry<StatusEffect> effectType = effect.getEffectType();
-                    int amplifier = effect.getAmplifier();
+        ServerPlayerEntity player = server.getPlayerManager().getPlayer(closestPlayerUuid);
+        if (player != null) {
+            // Apply the instant effect directly using the heal/damage method
+            // Use SharedStatsHandler.setSyncing() to prevent heal/damage from triggering sync
+            SharedStatsHandler.setSyncing(true);
+            try {
+                RegistryEntry<StatusEffect> effectType = effect.getEffectType();
+                int amplifier = effect.getAmplifier();
 
-                    if (effectType == StatusEffects.INSTANT_HEALTH) {
-                        // Instant Health heals 4 HP per level (2 hearts)
-                        float healAmount = (float) (4 << amplifier);
-                        player.heal(healAmount);
-                        SoulLink.LOGGER.debug(
-                                "Applied instant health ({} HP) to closest player: {}", healAmount,
-                                player.getName().getString());
-                    } else if (effectType == StatusEffects.INSTANT_DAMAGE) {
-                        // Instant Damage deals 6 HP per level (3 hearts)
-                        float damageAmount = (float) (6 << amplifier);
-                        // Use magic damage source for instant damage
-                        ServerWorld world = player.getEntityWorld();
-                        player.damage(world, world.getDamageSources().magic(), damageAmount);
-                        SoulLink.LOGGER.debug(
-                                "Applied instant damage ({} HP) to closest player: {}",
-                                damageAmount, player.getName().getString());
-                    }
-                } finally {
-                    SharedStatsHandler.setSyncing(false);
+                if (effectType == StatusEffects.INSTANT_HEALTH) {
+                    // Instant Health heals 4 × 2^amplifier HP (4 at level 1, 8 at level 2, etc.)
+                    float healAmount = (float) (4 << amplifier);
+                    player.heal(healAmount);
+                    SoulLink.LOGGER.debug("Applied instant health ({} HP) to closest player: {}",
+                            healAmount, player.getName().getString());
+                } else if (effectType == StatusEffects.INSTANT_DAMAGE) {
+                    // Instant Damage deals 6 HP per level (3 hearts)
+                    float damageAmount = (float) (6 << amplifier);
+                    // Use magic damage source for instant damage
+                    ServerWorld world = player.getEntityWorld();
+                    player.damage(world, world.getDamageSources().magic(), damageAmount);
+                    SoulLink.LOGGER.debug("Applied instant damage ({} HP) to closest player: {}",
+                            damageAmount, player.getName().getString());
                 }
-                break;
+            } finally {
+                SharedStatsHandler.setSyncing(false);
             }
         }
 
-        // Log how many players were in the splash zone
         SoulLink.LOGGER.info("Splash instant effect: {} players affected, applied to closest: {}",
                 splashEvent.playerPositions.size(),
-                server.getPlayerManager().getPlayer(closestPlayerUuid) != null ? server
-                        .getPlayerManager().getPlayer(closestPlayerUuid).getName().getString()
-                        : "unknown");
+                player != null ? player.getName().getString() : "unknown");
     }
 
     /**
@@ -355,7 +352,6 @@ public class SharedPotionHandler {
         isSyncing = false;
         recentlySyncedEffects.clear();
         pendingSplashEvents.clear();
-        chosenPlayersThisTick.clear();
         currentTick = -1;
     }
 }

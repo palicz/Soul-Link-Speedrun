@@ -1,4 +1,4 @@
-package net.zenzty.soullink;
+package net.zenzty.soullink.server.settings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +21,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
-import net.zenzty.soullink.mixin.ScreenHandlerAccessor;
+import net.zenzty.soullink.mixin.ui.ScreenHandlerAccessor;
+import net.zenzty.soullink.server.run.RunManager;
 
 /**
  * Handles the virtual settings GUI for the Soul Link mod. Uses a virtual double chest (54 slots) to
@@ -54,7 +55,7 @@ public class SettingsGui {
         // Open the screen
         player.openHandledScreen(
                 new SimpleNamedScreenHandlerFactory((syncId, playerInventory, playerEntity) -> {
-                    return new SettingsScreenHandler(syncId, inventory, player, originalSnapshot);
+                    return new SettingsScreenHandler(syncId, inventory, player);
                 }, Text.literal("Soul Link Settings").formatted(Formatting.DARK_GRAY)));
     }
 
@@ -138,7 +139,7 @@ public class SettingsGui {
                 default -> Formatting.WHITE;
             };
 
-            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+            LoreComponent difficultyLore = new LoreComponent(List.of(
                     Text.literal("Change to: ")
                             .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                             .append(Text
@@ -152,7 +153,8 @@ public class SettingsGui {
                                     .setStyle(Style.EMPTY.withItalic(false)
                                             .withFormatting(Formatting.WHITE))),
                     Text.empty(), Text.literal("Click to cycle difficulty").setStyle(
-                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, difficultyLore);
 
             return item;
         }
@@ -162,7 +164,7 @@ public class SettingsGui {
             item.set(DataComponentTypes.CUSTOM_NAME,
                     createItemName("Half Hearted Mode", Formatting.LIGHT_PURPLE, Formatting.BOLD));
 
-            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+            LoreComponent halfHeartLore = new LoreComponent(List.of(
                     Text.literal("Status: ")
                             .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                             .append(pendingHalfHeart
@@ -176,7 +178,8 @@ public class SettingsGui {
                     Text.literal("Players have only 1 health point!").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
                     Text.empty(), Text.literal("Click to toggle").setStyle(
-                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, halfHeartLore);
 
             return item;
         }
@@ -188,7 +191,7 @@ public class SettingsGui {
             item.set(DataComponentTypes.CUSTOM_NAME,
                     createItemName("Shared Potions Mode", Formatting.AQUA, Formatting.BOLD));
 
-            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+            LoreComponent sharedPotionsLore = new LoreComponent(List.of(
                     Text.literal("Status: ")
                             .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                             .append(pendingSharedPotions
@@ -206,7 +209,8 @@ public class SettingsGui {
                     Text.literal("one player then sync to others.").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
                     Text.empty(), Text.literal("Click to toggle").setStyle(
-                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, sharedPotionsLore);
 
             return item;
         }
@@ -216,8 +220,7 @@ public class SettingsGui {
                     new ItemStack(pendingSharedJumping ? Items.RABBIT_FOOT : Items.FEATHER);
             item.set(DataComponentTypes.CUSTOM_NAME,
                     createItemName("Shared Jumping Mode", Formatting.YELLOW, Formatting.BOLD));
-
-            item.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+            LoreComponent sharedJumpingLore = new LoreComponent(List.of(
                     Text.literal("Status: ")
                             .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                             .append(pendingSharedJumping
@@ -231,7 +234,8 @@ public class SettingsGui {
                     Text.literal("If one player jumps, all players jump.").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
                     Text.empty(), Text.literal("Click to toggle").setStyle(
-                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)))));
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY))));
+            item.set(DataComponentTypes.LORE, sharedJumpingLore);
 
             return item;
         }
@@ -294,18 +298,10 @@ public class SettingsGui {
             loreLines.add(Text.literal("Click to save and close.")
                     .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)));
 
-            item.set(DataComponentTypes.LORE, new LoreComponent(loreLines));
+            LoreComponent lore = new LoreComponent(loreLines);
+            item.set(DataComponentTypes.LORE, lore);
 
             return item;
-        }
-
-        private String getDifficultyName(Difficulty difficulty) {
-            return switch (difficulty) {
-                case PEACEFUL -> "Peaceful";
-                case EASY -> "Easy";
-                case NORMAL -> "Normal";
-                case HARD -> "Hard";
-            };
         }
 
         public boolean hasChanges() {
@@ -398,15 +394,14 @@ public class SettingsGui {
 
         private final SettingsInventory settingsInventory;
         private final ServerPlayerEntity player;
-        private final Settings.SettingsSnapshot original;
+        // Tracks if changes were confirmed vs cancelled
         private boolean confirmed = false;
 
         public SettingsScreenHandler(int syncId, SettingsInventory inventory,
-                ServerPlayerEntity player, Settings.SettingsSnapshot original) {
+                ServerPlayerEntity player) {
             super(ScreenHandlerType.GENERIC_9X6, syncId, player.getInventory(), inventory, 6);
             this.settingsInventory = inventory;
             this.player = player;
-            this.original = original;
 
             // Replace inventory slots (0-53) with virtual slots
             // Player inventory slots (54+) should remain normal
@@ -446,8 +441,8 @@ public class SettingsGui {
                 return;
             }
 
-            // Block all other interactions in virtual GUI slots
-            // Player inventory slots (54+) are handled normally by parent
+            // Delegate player inventory slot clicks (54+) to super for normal behavior
+            super.onSlotClick(slotIndex, button, actionType, clickingPlayer);
         }
 
         @Override
@@ -598,12 +593,7 @@ public class SettingsGui {
         }
 
         private String getDifficultyName(Difficulty difficulty) {
-            return switch (difficulty) {
-                case PEACEFUL -> "Peaceful";
-                case EASY -> "Easy";
-                case NORMAL -> "Normal";
-                case HARD -> "Hard";
-            };
+            return SettingsGui.getDifficultyName(difficulty);
         }
 
         private void playClickSound() {
@@ -633,5 +623,14 @@ public class SettingsGui {
         public boolean canUse(net.minecraft.entity.player.PlayerEntity playerEntity) {
             return true;
         }
+    }
+
+    private static String getDifficultyName(net.minecraft.world.Difficulty difficulty) {
+        return switch (difficulty) {
+            case PEACEFUL -> "Peaceful";
+            case EASY -> "Easy";
+            case NORMAL -> "Normal";
+            case HARD -> "Hard";
+        };
     }
 }

@@ -1,4 +1,4 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.interaction;
 
 import java.util.Comparator;
 import java.util.Optional;
@@ -25,8 +25,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.poi.PointOfInterest;
 import net.minecraft.world.poi.PointOfInterestStorage;
 import net.minecraft.world.poi.PointOfInterestTypes;
-import net.zenzty.soullink.RunManager;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.run.RunManager;
 
 /**
  * Mixin for NetherPortalBlock to redirect portal travel to temporary dimensions. Uses vanilla's POI
@@ -71,11 +71,21 @@ public abstract class NetherPortalMixin {
             return;
         }
 
-        // Calculate scaled position
+        // Calculate scaled position and clamp to world border and build height
         double scale = world.getDimension().coordinateScale()
                 / destinationWorld.getDimension().coordinateScale();
-        BlockPos scaledPos =
-                BlockPos.ofFloored(entity.getX() * scale, entity.getY(), entity.getZ() * scale);
+
+        double scaledX = net.minecraft.util.math.MathHelper.clamp(entity.getX() * scale,
+                destinationWorld.getWorldBorder().getBoundWest(),
+                destinationWorld.getWorldBorder().getBoundEast());
+        double scaledZ = net.minecraft.util.math.MathHelper.clamp(entity.getZ() * scale,
+                destinationWorld.getWorldBorder().getBoundNorth(),
+                destinationWorld.getWorldBorder().getBoundSouth());
+        int scaledY = net.minecraft.util.math.MathHelper.clamp(entity.getBlockY(),
+                destinationWorld.getBottomY(),
+                destinationWorld.getBottomY() + destinationWorld.getHeight() - 1);
+
+        BlockPos scaledPos = new BlockPos((int) scaledX, scaledY, (int) scaledZ);
 
         // FIRST: Search for existing portal using POI system (like vanilla does)
         Optional<BlockPos> existingPortal = findExistingPortalPOI(destinationWorld, scaledPos);
@@ -83,39 +93,52 @@ public abstract class NetherPortalMixin {
         if (existingPortal.isPresent()) {
             BlockPos portalPos = existingPortal.get();
             Vec3d spawnPos = findSafeSpawnInPortal(destinationWorld, portalPos);
-            SoulLink.LOGGER.info("Using existing portal at {}, spawn at {}", portalPos, spawnPos);
+            SoulLink.LOGGER.debug("Using existing portal at {}, spawn at {}", portalPos, spawnPos);
 
             // Trigger advancement for players using the vanilla dimension keys
             final boolean goingToNether = currentWorldKey.equals(tempOverworld);
 
-            cir.setReturnValue(new TeleportTarget(destinationWorld, spawnPos, entity.getVelocity(),
-                    entity.getYaw(), entity.getPitch(),
-                    TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
-                            .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
-                            .then(teleportedEntity -> triggerNetherAdvancement(teleportedEntity,
-                                    goingToNether))));
+            cir.setReturnValue(
+                    createPortalTeleportTarget(destinationWorld, spawnPos, entity, goingToNether));
             return;
         }
 
         // SECOND: No existing portal, create one using vanilla's PortalForcer
-        Optional<BlockLocating.Rectangle> newPortal = destinationWorld.getPortalForcer()
-                .createPortal(scaledPos, entity.getHorizontalFacing().getAxis());
+        // Derive axis from source block state if possible, otherwise fallback to entity facing
+        BlockState sourceState = world.getBlockState(pos);
+        Direction.Axis axis = sourceState.contains(Properties.HORIZONTAL_AXIS)
+                ? sourceState.get(Properties.HORIZONTAL_AXIS)
+                : entity.getHorizontalFacing().getAxis();
+
+        Optional<BlockLocating.Rectangle> newPortal =
+                destinationWorld.getPortalForcer().createPortal(scaledPos, axis);
 
         if (newPortal.isPresent()) {
             BlockLocating.Rectangle rect = newPortal.get();
-            Vec3d spawnPos = getPortalCenter(rect);
-            SoulLink.LOGGER.info("Created new portal at {}, spawn at {}", rect.lowerLeft, spawnPos);
+            Vec3d spawnPos = getPortalCenter(rect, axis);
+            SoulLink.LOGGER.debug("Created new portal at {}, spawn at {}", rect.lowerLeft,
+                    spawnPos);
 
             // Trigger advancement for players using the vanilla dimension keys
             final boolean goingToNether = currentWorldKey.equals(tempOverworld);
 
-            cir.setReturnValue(new TeleportTarget(destinationWorld, spawnPos, entity.getVelocity(),
-                    entity.getYaw(), entity.getPitch(),
-                    TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
-                            .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
-                            .then(teleportedEntity -> triggerNetherAdvancement(teleportedEntity,
-                                    goingToNether))));
+            cir.setReturnValue(
+                    createPortalTeleportTarget(destinationWorld, spawnPos, entity, goingToNether));
         }
+    }
+
+    /**
+     * Helper to create a TeleportTarget with common settings.
+     */
+    @Unique
+    private TeleportTarget createPortalTeleportTarget(ServerWorld destinationWorld, Vec3d spawnPos,
+            Entity entity, boolean goingToNether) {
+        return new TeleportTarget(destinationWorld, spawnPos, entity.getVelocity(), entity.getYaw(),
+                entity.getPitch(),
+                TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET
+                        .then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
+                        .then(teleportedEntity -> triggerNetherAdvancement(teleportedEntity,
+                                goingToNether)));
     }
 
     /**
@@ -128,7 +151,7 @@ public abstract class NetherPortalMixin {
             RegistryKey<World> from = goingToNether ? World.OVERWORLD : World.NETHER;
             RegistryKey<World> to = goingToNether ? World.NETHER : World.OVERWORLD;
             Criteria.CHANGED_DIMENSION.trigger(player, from, to);
-            SoulLink.LOGGER.info("Triggered nether advancement for {}: {} -> {}",
+            SoulLink.LOGGER.debug("Triggered nether advancement for {}: {} -> {}",
                     player.getName().getString(), from.getValue(), to.getValue());
         }
     }
@@ -136,14 +159,24 @@ public abstract class NetherPortalMixin {
     /**
      * Gets the center position of a portal rectangle.
      */
-    private Vec3d getPortalCenter(BlockLocating.Rectangle rect) {
-        return new Vec3d(rect.lowerLeft.getX() + rect.width / 2.0, rect.lowerLeft.getY() + 0.5,
-                rect.lowerLeft.getZ() + 0.5);
+    @Unique
+    private Vec3d getPortalCenter(BlockLocating.Rectangle rect, Direction.Axis axis) {
+        double centerX = rect.lowerLeft.getX() + 0.5;
+        double centerZ = rect.lowerLeft.getZ() + 0.5;
+
+        if (axis == Direction.Axis.X) {
+            centerX += rect.width / 2.0;
+        } else if (axis == Direction.Axis.Z) {
+            centerZ += rect.width / 2.0;
+        }
+
+        return new Vec3d(centerX, rect.lowerLeft.getY() + 0.5, centerZ);
     }
 
     /**
      * Finds a safe spawn position inside an existing portal. Scans the portal to find its center.
      */
+    @Unique
     private Vec3d findSafeSpawnInPortal(ServerWorld world, BlockPos portalBlockPos) {
         BlockState state = world.getBlockState(portalBlockPos);
 
@@ -194,6 +227,7 @@ public abstract class NetherPortalMixin {
     /**
      * Uses vanilla's Point of Interest system to find existing nether portals.
      */
+    @Unique
     private Optional<BlockPos> findExistingPortalPOI(ServerWorld world, BlockPos targetPos) {
         PointOfInterestStorage poiStorage = world.getPointOfInterestStorage();
 

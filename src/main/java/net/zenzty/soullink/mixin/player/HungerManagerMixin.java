@@ -1,4 +1,4 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.player;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.entity.player.HungerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.zenzty.soullink.RunManager;
-import net.zenzty.soullink.SharedStatsHandler;
+import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.run.RunManager;
 
 /**
  * Mixin for HungerManager to sync hunger changes between players.
@@ -48,6 +48,8 @@ public abstract class HungerManagerMixin {
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive()) {
+            previousFoodLevel = this.foodLevel;
+            previousSaturation = this.saturationLevel;
             return;
         }
 
@@ -55,6 +57,8 @@ public abstract class HungerManagerMixin {
         ServerWorld serverWorld = player.getEntityWorld();
 
         if (!runManager.isTemporaryWorld(serverWorld.getRegistryKey())) {
+            previousFoodLevel = this.foodLevel;
+            previousSaturation = this.saturationLevel;
             return;
         }
 
@@ -68,9 +72,9 @@ public abstract class HungerManagerMixin {
                     || this.saturationLevel < previousSaturation - 0.01f;
 
             if (isHungerDrain) {
-                // Calculate the drain amounts
-                int foodDrain = previousFoodLevel - this.foodLevel;
-                float satDrain = previousSaturation - this.saturationLevel;
+                // Calculate the drain amounts (clamped to non-negative)
+                int foodDrain = Math.max(0, previousFoodLevel - this.foodLevel);
+                float satDrain = Math.max(0f, previousSaturation - this.saturationLevel);
 
                 // Use normalized hunger drain (divided by player count)
                 SharedStatsHandler.onNaturalHungerDrain(player, foodDrain, satDrain);

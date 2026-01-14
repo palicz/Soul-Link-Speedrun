@@ -1,4 +1,4 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.ui;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -15,6 +15,11 @@ public interface ScreenHandlerAccessor {
     @Accessor("revision")
     int getRevision();
 
+    /**
+     * Set the revision number. WARNING: Direct writes can desynchronize the revision counter and
+     * cause race conditions. Use {@link #invokeGetNextRevision()} for atomic increments whenever
+     * possible.
+     */
     @Accessor("revision")
     void setRevision(int revision);
 

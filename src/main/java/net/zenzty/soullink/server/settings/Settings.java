@@ -1,6 +1,9 @@
-package net.zenzty.soullink;
+package net.zenzty.soullink.server.settings;
 
 import net.minecraft.world.Difficulty;
+import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.run.RunState;
 
 /**
  * Holds all configurable settings for the Soul Link mod. Settings are applied on the next run when
@@ -8,7 +11,7 @@ import net.minecraft.world.Difficulty;
  */
 public class Settings {
 
-    private static Settings instance = new Settings();
+    private static final Settings instance = new Settings();
 
     // Current active settings (used during runs)
     private Difficulty difficulty = Difficulty.NORMAL;
@@ -16,8 +19,8 @@ public class Settings {
     private boolean sharedPotions = false;
     private boolean sharedJumping = false;
 
-    // Pending shared jumping setting (applied on next run)
-    private Boolean pendingSharedJumping = null;
+    // Pending settings to be applied on next run
+    private SettingsSnapshot pendingSnapshot = null;
 
     private Settings() {}
 
@@ -32,7 +35,8 @@ public class Settings {
     }
 
     public void setDifficulty(Difficulty difficulty) {
-        this.difficulty = difficulty;
+        // Normalize Peaceful to Easy since mod doesn't support it
+        this.difficulty = (difficulty == Difficulty.PEACEFUL) ? Difficulty.EASY : difficulty;
     }
 
     /**
@@ -86,44 +90,55 @@ public class Settings {
     }
 
     /**
-     * Applies settings from a snapshot. Shared jumping is deferred until the next run if a run is
-     * currently active.
+     * Applies settings from a snapshot. If a run is active, all changes except difficulty are
+     * deferred until the next run.
      */
     public void applySnapshot(SettingsSnapshot snapshot) {
-        this.difficulty = snapshot.difficulty();
-        this.halfHeartMode = snapshot.halfHeartMode();
-        this.sharedPotions = snapshot.sharedPotions();
-
-        // Check if a run is active - if so, defer shared jumping until next run
+        // Check if a run is active
         RunManager runManager = RunManager.getInstance();
-        boolean runActive =
-                runManager != null && (runManager.getGameState() == RunManager.GameState.RUNNING
-                        || runManager.getGameState() == RunManager.GameState.GENERATING_WORLD);
+        boolean runActive = runManager != null && (runManager.getGameState() == RunState.RUNNING
+                || runManager.getGameState() == RunState.GENERATING_WORLD);
 
-        if (runActive && snapshot.sharedJumping() != this.sharedJumping) {
-            // Defer the change until next run
-            this.pendingSharedJumping = snapshot.sharedJumping();
-            SoulLink.LOGGER.info(
-                    "Settings applied: Difficulty={}, HalfHeart={}, SharedPotions={}, SharedJumping={} (deferred until next run)",
-                    difficulty, halfHeartMode, sharedPotions, snapshot.sharedJumping());
+        if (runActive) {
+            // Check if anything actually changed
+            SettingsSnapshot current = createSnapshot();
+            if (snapshot.equals(current)) {
+                this.pendingSnapshot = null;
+                return;
+            }
+
+            // Defer all changes until next run
+            this.pendingSnapshot = snapshot;
+            SoulLink.LOGGER.info("Settings changes queued for next run: {}", snapshot);
         } else {
-            // Apply immediately (no active run)
-            this.sharedJumping = snapshot.sharedJumping();
-            this.pendingSharedJumping = null;
-            SoulLink.LOGGER.info(
-                    "Settings applied: Difficulty={}, HalfHeart={}, SharedPotions={}, SharedJumping={}",
-                    difficulty, halfHeartMode, sharedPotions, sharedJumping);
+            // No active run - apply immediately
+            applySnapshotInternal(snapshot);
+            this.pendingSnapshot = null;
         }
     }
 
     /**
-     * Applies any pending shared jumping setting. Called when a new run starts.
+     * Internal method to apply all settings from a snapshot immediately.
      */
-    public void applyPendingSharedJumping() {
-        if (pendingSharedJumping != null) {
-            this.sharedJumping = pendingSharedJumping;
-            SoulLink.LOGGER.info("Applied pending shared jumping setting: {}", sharedJumping);
-            pendingSharedJumping = null;
+    private void applySnapshotInternal(SettingsSnapshot snapshot) {
+        setDifficulty(snapshot.difficulty());
+        this.halfHeartMode = snapshot.halfHeartMode();
+        this.sharedPotions = snapshot.sharedPotions();
+        this.sharedJumping = snapshot.sharedJumping();
+
+        SoulLink.LOGGER.info(
+                "Settings applied: Difficulty={}, HalfHeart={}, SharedPotions={}, SharedJumping={}",
+                difficulty, halfHeartMode, sharedPotions, sharedJumping);
+    }
+
+    /**
+     * Applies any pending settings. Called when a new run starts.
+     */
+    public void applyPendingSettings() {
+        if (pendingSnapshot != null) {
+            SoulLink.LOGGER.info("Applying pending settings for new run...");
+            applySnapshotInternal(pendingSnapshot);
+            pendingSnapshot = null;
         }
     }
 
@@ -132,10 +147,5 @@ public class Settings {
      */
     public record SettingsSnapshot(Difficulty difficulty, boolean halfHeartMode,
             boolean sharedPotions, boolean sharedJumping) {
-        public boolean equals(SettingsSnapshot other) {
-            return this.difficulty == other.difficulty && this.halfHeartMode == other.halfHeartMode
-                    && this.sharedPotions == other.sharedPotions
-                    && this.sharedJumping == other.sharedJumping;
-        }
     }
 }
