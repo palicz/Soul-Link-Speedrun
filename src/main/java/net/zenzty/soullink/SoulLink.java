@@ -149,12 +149,12 @@ public class SoulLink implements ModInitializer {
                     return 0;
                 }
 
-                // Broadcast reset message to all players
-                runManager.getServer().getPlayerManager()
-                        .broadcast(RunManager.formatMessage("Run has been reset."), false);
-
+                // Perform the reset first
                 runManager.triggerGameOver();
 
+                // Broadcast reset message to all players after successful reset
+                runManager.getServer().getPlayerManager()
+                        .broadcast(RunManager.formatMessage("Run has been reset."), false);
                 return Command.SINGLE_SUCCESS;
             }));
         });
