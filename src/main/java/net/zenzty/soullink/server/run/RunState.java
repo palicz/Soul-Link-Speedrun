@@ -14,5 +14,17 @@ public enum RunState {
     RUNNING,
 
     /** Game ended (victory or defeat). */
-    GAMEOVER
+    GAMEOVER;
+
+    public boolean isActive() {
+        return this == RUNNING;
+    }
+
+    public boolean isGenerating() {
+        return this == GENERATING_WORLD;
+    }
+
+    public boolean isTerminal() {
+        return this == GAMEOVER;
+    }
 }

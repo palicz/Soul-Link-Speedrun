@@ -35,9 +35,9 @@ public abstract class StatusEffectMixin {
                 cir.setReturnValue(false);
                 cir.cancel();
             }
-        } catch (Throwable t) {
+        } catch (Exception e) {
             net.zenzty.soullink.SoulLink.LOGGER.error(
-                    "Error in SharedPotionHandler.onEffectApplied - allowing vanilla behavior", t);
+                    "Error in SharedPotionHandler.onEffectApplied - allowing vanilla behavior", e);
         }
     }
 }

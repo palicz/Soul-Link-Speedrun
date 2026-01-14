@@ -1,5 +1,6 @@
 package net.zenzty.soullink.server.run;
 
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -39,7 +40,7 @@ public class RunManager {
     private volatile RunState gameState = RunState.IDLE;
 
     // End dimension initialization flag (resets per run)
-    private boolean endInitialized = false;
+    private volatile boolean endInitialized = false;
 
     // ==================== MESSAGE FORMATTING ====================
 
@@ -92,18 +93,26 @@ public class RunManager {
         this.teleportService = new PlayerTeleportService(server);
     }
 
-    public static void init(MinecraftServer server) {
+    public static synchronized void init(MinecraftServer server) {
+        if (instance != null) {
+            SoulLink.LOGGER.warn("RunManager already initialized!");
+            return;
+        }
         instance = new RunManager(server);
     }
 
     public static RunManager getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException("RunManager not initialized");
+        }
         return instance;
     }
 
-    public static void cleanup() {
-        if (instance != null) {
-            instance.worldService.deleteOldWorlds();
-            instance.deleteWorlds(true);
+    public static synchronized void cleanup() {
+        RunManager currentInstance = instance;
+        if (currentInstance != null) {
+            currentInstance.worldService.deleteOldWorlds();
+            currentInstance.deleteWorlds(true);
             instance = null;
         }
     }
@@ -235,7 +244,7 @@ public class RunManager {
     public void deleteWorlds(boolean teleportPlayers) {
         if (teleportPlayers) {
             List<ServerPlayerEntity> allPlayers =
-                    new java.util.ArrayList<>(server.getPlayerManager().getPlayerList());
+                    new ArrayList<>(server.getPlayerManager().getPlayerList());
 
             for (ServerPlayerEntity player : allPlayers) {
                 ServerWorld playerWorld = getPlayerWorld(player);

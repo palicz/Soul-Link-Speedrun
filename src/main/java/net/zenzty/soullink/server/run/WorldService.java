@@ -107,74 +107,43 @@ public class WorldService {
         endHandle = null;
     }
 
+    private void safeDeleteWorld(RuntimeWorldHandle handle, String worldName) {
+        if (handle != null) {
+            try {
+                handle.delete();
+                SoulLink.LOGGER.info("Deleted {}", worldName);
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Failed to delete {}", worldName, e);
+            }
+        }
+    }
+
     /**
      * Deletes the old world handles saved from previous run.
      */
     public void deleteOldWorlds() {
-        if (oldOverworldHandle != null) {
-            try {
-                oldOverworldHandle.delete();
-                SoulLink.LOGGER.info("Deleted old temporary overworld");
-            } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to delete old temporary overworld", e);
-            }
-            oldOverworldHandle = null;
-        }
+        safeDeleteWorld(oldOverworldHandle, "old temporary overworld");
+        oldOverworldHandle = null;
 
-        if (oldNetherHandle != null) {
-            try {
-                oldNetherHandle.delete();
-                SoulLink.LOGGER.info("Deleted old temporary nether");
-            } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to delete old temporary nether", e);
-            }
-            oldNetherHandle = null;
-        }
+        safeDeleteWorld(oldNetherHandle, "old temporary nether");
+        oldNetherHandle = null;
 
-        if (oldEndHandle != null) {
-            try {
-                oldEndHandle.delete();
-                SoulLink.LOGGER.info("Deleted old temporary end");
-            } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to delete old temporary end", e);
-            }
-            oldEndHandle = null;
-        }
+        safeDeleteWorld(oldEndHandle, "old temporary end");
+        oldEndHandle = null;
     }
 
     /**
      * Deletes all current temporary worlds.
      */
     public void deleteCurrentWorlds() {
-        if (overworldHandle != null) {
-            try {
-                overworldHandle.delete();
-                SoulLink.LOGGER.info("Deleted temporary overworld");
-            } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to delete temporary overworld", e);
-            }
-            overworldHandle = null;
-        }
+        safeDeleteWorld(overworldHandle, "temporary overworld");
+        overworldHandle = null;
 
-        if (netherHandle != null) {
-            try {
-                netherHandle.delete();
-                SoulLink.LOGGER.info("Deleted temporary nether");
-            } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to delete temporary nether", e);
-            }
-            netherHandle = null;
-        }
+        safeDeleteWorld(netherHandle, "temporary nether");
+        netherHandle = null;
 
-        if (endHandle != null) {
-            try {
-                endHandle.delete();
-                SoulLink.LOGGER.info("Deleted temporary end");
-            } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to delete temporary end", e);
-            }
-            endHandle = null;
-        }
+        safeDeleteWorld(endHandle, "temporary end");
+        endHandle = null;
     }
 
     /**

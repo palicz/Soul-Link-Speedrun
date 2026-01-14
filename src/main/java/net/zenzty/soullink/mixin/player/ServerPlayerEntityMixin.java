@@ -53,11 +53,14 @@ public abstract class ServerPlayerEntityMixin {
 
         // Trigger game over if not already in that state
         if (!runManager.isGameOver()) {
-            runManager.getServer().execute(() -> {
-                if (!runManager.isGameOver()) {
-                    runManager.triggerGameOver();
-                }
-            });
+            net.minecraft.server.MinecraftServer server = runManager.getServer();
+            if (server != null) {
+                server.execute(() -> {
+                    if (!runManager.isGameOver()) {
+                        runManager.triggerGameOver();
+                    }
+                });
+            }
         }
     }
 

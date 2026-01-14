@@ -149,10 +149,9 @@ public class SharedPotionHandler {
         if (isInstantEffect(effectType)) {
             try {
                 return handleInstantEffect(player, effect, runManager);
+            } catch (RuntimeException r) {
+                throw r;
             } catch (Exception e) {
-                if (e instanceof RuntimeException) {
-                    throw e;
-                }
                 SoulLink.LOGGER.error("Failed to handle instant effect - allowing vanilla behavior",
                         e);
                 return true;

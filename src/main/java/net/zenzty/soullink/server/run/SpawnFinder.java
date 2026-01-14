@@ -112,6 +112,7 @@ public class SpawnFinder {
             RegistryEntry<Biome> biome = biomeAccess.getBiome(samplePos);
             return biome.isIn(BiomeTags.IS_OCEAN) || biome.isIn(BiomeTags.IS_DEEP_OCEAN);
         } catch (Exception e) {
+            SoulLink.LOGGER.trace("Error checking ocean biome at {}, {}: {}", x, z, e.getMessage());
             return false;
         }
     }
@@ -200,7 +201,7 @@ public class SpawnFinder {
             }
 
             // Skip corner duplicates
-            if (searchRadius > SEARCH_STEP && Math.abs(x) != searchRadius
+            if (searchRadius >= SEARCH_STEP && Math.abs(x) != searchRadius
                     && Math.abs(z) != searchRadius) {
                 continue;
             }

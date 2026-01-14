@@ -1,15 +1,15 @@
 package net.zenzty.soullink.server.event;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -30,8 +30,18 @@ import net.zenzty.soullink.server.run.RunState;
  */
 public class EventRegistry {
 
-    // Track delayed tasks (tick -> runnable)
-    private static final Map<Integer, List<Runnable>> delayedTasks = new HashMap<>();
+    private static class DelayedTask {
+        int remainingTicks;
+        final Runnable task;
+
+        DelayedTask(int remainingTicks, Runnable task) {
+            this.remainingTicks = remainingTicks;
+            this.task = task;
+        }
+    }
+
+    // Track delayed tasks (list of tasks with remaining ticks)
+    private static final List<DelayedTask> delayedTasks = new ArrayList<>();
 
     /**
      * Registers all events for the SoulLink mod.
@@ -56,18 +66,28 @@ public class EventRegistry {
         // Server stopping - cleanup worlds
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             SoulLink.LOGGER.info("Server stopping - cleaning up temporary worlds");
+            delayedTasks.clear(); // Clear pending tasks
             RunManager.cleanup();
         });
     }
 
     /**
-     * Registers player connection events for welcome message and late join handling.
+     * Registers player connection events for player connections and disconnects.
      */
     private static void registerConnectionEvents() {
         // Player joins - show welcome or handle late join
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
-            RunManager runManager = RunManager.getInstance();
+
+            // Check if RunManager is initialized (might not be if server just started)
+            // But usually SERVER_STARTED runs before player join.
+            // However, use try-catch or check to be safe if getInstance throws.
+            RunManager runManager;
+            try {
+                runManager = RunManager.getInstance();
+            } catch (IllegalStateException e) {
+                return;
+            }
 
             if (runManager == null) {
                 return;
@@ -79,7 +99,7 @@ public class EventRegistry {
             }
 
             // Delay other handling to ensure player is fully loaded
-            scheduleDelayed(server, 10, () -> {
+            scheduleDelayed(10, () -> {
                 // Return early if player has disconnected in the meantime
                 if (player.isRemoved()) {
                     return;
@@ -118,7 +138,13 @@ public class EventRegistry {
         // Player disconnects - log for debugging
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
-            RunManager runManager = RunManager.getInstance();
+
+            RunManager runManager;
+            try {
+                runManager = RunManager.getInstance();
+            } catch (IllegalStateException e) {
+                return;
+            }
 
             if (runManager != null && runManager.isRunActive()) {
                 SoulLink.LOGGER.info("Player {} disconnected during active run",
@@ -208,7 +234,12 @@ public class EventRegistry {
             // Process any delayed tasks first
             processDelayedTasks(server);
 
-            RunManager runManager = RunManager.getInstance();
+            RunManager runManager;
+            try {
+                runManager = RunManager.getInstance();
+            } catch (IllegalStateException e) {
+                return;
+            }
 
             if (runManager != null) {
                 // Update run manager (handles generation, timer, etc.)
@@ -230,7 +261,12 @@ public class EventRegistry {
         // Handle entity death - check for dragon
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof EnderDragonEntity dragon) {
-                RunManager runManager = RunManager.getInstance();
+                RunManager runManager;
+                try {
+                    runManager = RunManager.getInstance();
+                } catch (IllegalStateException e) {
+                    return;
+                }
 
                 if (runManager == null || !runManager.isRunActive()) {
                     return;
@@ -251,7 +287,13 @@ public class EventRegistry {
                 return true;
             }
 
-            RunManager runManager = RunManager.getInstance();
+            RunManager runManager;
+            try {
+                runManager = RunManager.getInstance();
+            } catch (IllegalStateException e) {
+                return true;
+            }
+
             if (runManager == null) {
                 return true;
             }
@@ -284,14 +326,7 @@ public class EventRegistry {
                         "Lethal damage detected for {} ({} damage, {} health) - triggering game over!",
                         player.getName().getString(), amount, currentHealth);
 
-                Text deathMessage = source.getDeathMessage(player);
-                Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
-                        .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
-                        .append(deathMessage.copy().formatted(Formatting.RED));
-                runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage, false);
-
-                player.setHealth(player.getMaxHealth());
-                runManager.triggerGameOver();
+                handlePlayerDeath(player, source, runManager);
 
                 return false;
             }
@@ -306,7 +341,13 @@ public class EventRegistry {
                         return;
                     }
 
-                    RunManager runManager = RunManager.getInstance();
+                    RunManager runManager;
+                    try {
+                        runManager = RunManager.getInstance();
+                    } catch (IllegalStateException e) {
+                        return;
+                    }
+
                     if (runManager == null || !runManager.isRunActive()) {
                         return;
                     }
@@ -320,15 +361,7 @@ public class EventRegistry {
                                 "Player {} reached 0 health despite ALLOW_DAMAGE check - triggering game over",
                                 player.getName().getString());
 
-                        Text deathMessage = source.getDeathMessage(player);
-                        Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
-                                .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
-                                .append(deathMessage.copy().formatted(Formatting.RED));
-                        runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage,
-                                false);
-
-                        player.setHealth(player.getMaxHealth());
-                        runManager.triggerGameOver();
+                        handlePlayerDeath(player, source, runManager);
                         return;
                     }
 
@@ -346,26 +379,47 @@ public class EventRegistry {
     }
 
     /**
+     * Handles player death logic (broadcast message, reset health, trigger game over).
+     */
+    private static void handlePlayerDeath(ServerPlayerEntity player, DamageSource source,
+            RunManager runManager) {
+        Text deathMessage = source.getDeathMessage(player);
+        Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
+                .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
+                .append(deathMessage.copy().formatted(Formatting.RED));
+        runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage, false);
+
+        player.setHealth(player.getMaxHealth());
+        runManager.triggerGameOver();
+    }
+
+    /**
      * Schedule a task to run after a delay in ticks.
      */
+    public static void scheduleDelayed(int delayTicks, Runnable task) {
+        delayedTasks.add(new DelayedTask(delayTicks, task));
+    }
+
+    // Kept for backward compatibility if needed, but redirects to the new one
     public static void scheduleDelayed(MinecraftServer server, int delayTicks, Runnable task) {
-        int targetTick = server.getTicks() + delayTicks;
-        delayedTasks.computeIfAbsent(targetTick, k -> new ArrayList<>()).add(task);
+        scheduleDelayed(delayTicks, task);
     }
 
     /**
      * Process any delayed tasks that are ready to run.
      */
     private static void processDelayedTasks(MinecraftServer server) {
-        int currentTick = server.getTicks();
-        List<Runnable> tasks = delayedTasks.remove(currentTick);
-        if (tasks != null) {
-            for (Runnable task : tasks) {
+        Iterator<DelayedTask> iterator = delayedTasks.iterator();
+        while (iterator.hasNext()) {
+            DelayedTask task = iterator.next();
+            task.remainingTicks--;
+            if (task.remainingTicks <= 0) {
                 try {
-                    task.run();
+                    task.task.run();
                 } catch (Exception e) {
                     SoulLink.LOGGER.error("Error running delayed task", e);
                 }
+                iterator.remove();
             }
         }
     }

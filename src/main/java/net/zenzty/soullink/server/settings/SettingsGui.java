@@ -394,7 +394,7 @@ public class SettingsGui {
 
         private final SettingsInventory settingsInventory;
         private final ServerPlayerEntity player;
-        // field removed to fix lint warning
+        // Tracks if changes were confirmed vs cancelled
         private boolean confirmed = false;
 
         public SettingsScreenHandler(int syncId, SettingsInventory inventory,
@@ -402,7 +402,6 @@ public class SettingsGui {
             super(ScreenHandlerType.GENERIC_9X6, syncId, player.getInventory(), inventory, 6);
             this.settingsInventory = inventory;
             this.player = player;
-            // assignment removed to fix lint warning
 
             // Replace inventory slots (0-53) with virtual slots
             // Player inventory slots (54+) should remain normal

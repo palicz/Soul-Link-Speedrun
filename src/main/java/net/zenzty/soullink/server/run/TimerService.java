@@ -12,13 +12,13 @@ import net.zenzty.soullink.SoulLink;
  */
 public class TimerService {
 
-    private volatile long startTimeMillis;
-    private volatile long elapsedTimeMillis;
-    private volatile boolean timerRunning;
-    private volatile boolean timerStartedThisRun;
+    private long startTimeMillis;
+    private long elapsedTimeMillis;
+    private boolean timerRunning;
+    private boolean timerStartedThisRun;
 
     // Timer start: wait for player input (movement or camera)
-    private volatile boolean waitingForInput;
+    private boolean waitingForInput;
     private java.util.UUID trackedPlayerId;
     private double trackedX, trackedZ;
     private float trackedYaw, trackedPitch;
