@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -260,9 +261,24 @@ public class SoulLink implements ModInitializer {
                 .literal("                                                                      ")
                 .formatted(Formatting.DARK_GRAY, Formatting.STRIKETHROUGH), false);
 
-        // Title
-        player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE")
-                .formatted(Formatting.RED, Formatting.BOLD)), false);
+        // Title - Show beta version info only if version contains "beta"
+        var container = FabricLoader.getInstance().getModContainer(MOD_ID);
+        if (container.isPresent()) {
+            String version = container.get().getMetadata().getVersion().getFriendlyString();
+            if (version.contains("beta")) {
+                player.sendMessage(Text.empty()
+                        .append(Text.literal("SOUL LINK SPEEDRUN - BETA RELEASE " + version)
+                                .formatted(Formatting.RED, Formatting.BOLD)),
+                        false);
+            } else {
+                player.sendMessage(Text.empty().append(Text.literal("SOUL LINK SPEEDRUN")
+                        .formatted(Formatting.RED, Formatting.BOLD)), false);
+            }
+        } else {
+            player.sendMessage(Text.empty().append(
+                    Text.literal("SOUL LINK SPEEDRUN").formatted(Formatting.RED, Formatting.BOLD)),
+                    false);
+        }
 
         // Empty line
         player.sendMessage(Text.empty(), false);
