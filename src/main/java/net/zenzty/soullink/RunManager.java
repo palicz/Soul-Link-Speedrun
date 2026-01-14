@@ -636,15 +636,25 @@ public class RunManager {
     }
 
     /**
-     * Teleports a player to the vanilla overworld spawn.
+     * Teleports a player to the vanilla overworld spawn. Uses the world's spawn point (which
+     * Minecraft sets to a land location) with a safe Y coordinate.
      */
     public void teleportToVanillaSpawn(ServerPlayerEntity player) {
         ServerWorld overworld = server.getOverworld();
-        int y = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, 0, 0);
-        if (y < 1)
-            y = 64;
 
-        player.teleport(overworld, 0.5, y, 0.5, Set.of(), player.getYaw(), player.getPitch(), true);
+        // Get spawn coordinates from world properties
+        // SpawnPoint has globalPos (GlobalPos with pos() accessor), yaw, pitch
+        net.minecraft.world.WorldProperties.SpawnPoint spawn =
+                overworld.getLevelProperties().getSpawnPoint();
+        BlockPos spawnPos = spawn.globalPos().pos();
+        int spawnX = spawnPos.getX();
+        int spawnZ = spawnPos.getZ();
+
+        // Use the spawn point's coordinates directly - the vanilla spawn Y is already safe
+        int y = spawnPos.getY();
+
+        player.teleport(overworld, spawnX + 0.5, y, spawnZ + 0.5, Set.of(), player.getYaw(),
+                player.getPitch(), true);
     }
 
     /**
