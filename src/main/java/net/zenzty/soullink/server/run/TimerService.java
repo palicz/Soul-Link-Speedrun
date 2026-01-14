@@ -12,14 +12,14 @@ import net.zenzty.soullink.SoulLink;
  */
 public class TimerService {
 
-    private long startTimeMillis;
-    private long elapsedTimeMillis;
-    private boolean timerRunning;
-    private boolean timerStartedThisRun;
+    private volatile long startTimeMillis;
+    private volatile long elapsedTimeMillis;
+    private volatile boolean timerRunning;
+    private volatile boolean timerStartedThisRun;
 
     // Timer start: wait for player input (movement or camera)
-    private boolean waitingForInput;
-    private ServerPlayerEntity trackedPlayer;
+    private volatile boolean waitingForInput;
+    private java.util.UUID trackedPlayerId;
     private double trackedX, trackedZ;
     private float trackedYaw, trackedPitch;
 
@@ -30,7 +30,7 @@ public class TimerService {
         timerStartedThisRun = false;
         timerRunning = false;
         waitingForInput = false;
-        trackedPlayer = null;
+        trackedPlayerId = null;
         elapsedTimeMillis = 0;
         startTimeMillis = 0;
     }
@@ -43,7 +43,7 @@ public class TimerService {
     public void beginWaitingForInput(ServerPlayerEntity player) {
         if (!timerStartedThisRun && !waitingForInput) {
             waitingForInput = true;
-            trackedPlayer = player;
+            trackedPlayerId = player.getUuid();
             trackedX = player.getX();
             trackedZ = player.getZ();
             trackedYaw = player.getYaw();
@@ -100,7 +100,7 @@ public class TimerService {
                 timerStartedThisRun = true;
                 startTimeMillis = System.currentTimeMillis();
                 timerRunning = true;
-                trackedPlayer = null;
+                trackedPlayerId = null;
                 SoulLink.LOGGER.info("Player input detected! Timer started at 00:00:00");
             } else {
                 // Show ready message - timer at 00:00:00 waiting for input
@@ -141,6 +141,11 @@ public class TimerService {
      */
     private boolean checkForInput(MinecraftServer server,
             java.util.function.Predicate<ServerPlayerEntity> isInRunCheck) {
+        ServerPlayerEntity trackedPlayer = null;
+        if (trackedPlayerId != null) {
+            trackedPlayer = server.getPlayerManager().getPlayer(trackedPlayerId);
+        }
+
         if (trackedPlayer == null || trackedPlayer.isDisconnected()) {
             // Find a new player to track
             var players = server.getPlayerManager().getPlayerList().stream().filter(isInRunCheck)
@@ -149,6 +154,7 @@ public class TimerService {
                 return false;
             }
             trackedPlayer = players.get(0);
+            trackedPlayerId = trackedPlayer.getUuid();
             // Re-capture their position
             trackedX = trackedPlayer.getX();
             trackedZ = trackedPlayer.getZ();

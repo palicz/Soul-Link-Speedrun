@@ -19,20 +19,23 @@ import net.zenzty.soullink.server.settings.Settings;
 public class SharedStatsHandler {
 
     // Master stat values
-    private static float sharedHealth = 20.0f;
-    private static int sharedHunger = 20;
-    private static float sharedSaturation = 5.0f;
-    private static float sharedAbsorption = 0.0f; // Absorption hearts (golden apples, etc)
+    private static volatile float sharedHealth = 20.0f;
+    private static volatile int sharedHunger = 20;
+    private static volatile float sharedSaturation = 5.0f;
+    private static volatile float sharedAbsorption = 0.0f; // Absorption hearts (golden apples, etc)
 
     // Prevent infinite sync loops
-    private static boolean isSyncing = false;
+    private static volatile boolean isSyncing = false;
 
     // Accumulator for fractional natural regen (since we divide by player count)
-    private static float regenAccumulator = 0.0f;
+    private static volatile float regenAccumulator = 0.0f;
 
     // Accumulators for fractional hunger/saturation drain (since we divide by player count)
-    private static float hungerDrainAccumulator = 0.0f;
-    private static float saturationDrainAccumulator = 0.0f;
+    private static volatile float hungerDrainAccumulator = 0.0f;
+    private static volatile float saturationDrainAccumulator = 0.0f;
+
+    // Accumulator for fractional damage (Poison/Wither)
+    private static volatile float damageAccumulator = 0.0f;
 
     /**
      * Gets the current max health based on settings.
@@ -56,6 +59,7 @@ public class SharedStatsHandler {
         regenAccumulator = 0.0f;
         hungerDrainAccumulator = 0.0f;
         saturationDrainAccumulator = 0.0f;
+        damageAccumulator = 0.0f;
 
         // Also reset other shared handlers
         SharedPotionHandler.reset();
@@ -123,6 +127,15 @@ public class SharedStatsHandler {
         isSyncing = true;
         try {
             float oldHealth = sharedHealth;
+            float currentDamageAmount = oldHealth - newHealth;
+
+            // Handle periodic damage (Poison/Wither) - normalize by player count
+            // Without this, N players poisoned = Nx damage speed
+            String damageType = damageSource.getName();
+            if (damageType.equals("poison") || damageType.equals("wither")) {
+                handlePeriodicDamage(damagedPlayer, currentDamageAmount);
+                return;
+            }
 
             // Update the master health to match the damaged player's health
             sharedHealth = MathHelper.clamp(newHealth, 0.0f, getMaxHealth());
@@ -140,13 +153,13 @@ public class SharedStatsHandler {
                 if (server == null)
                     return;
 
-                float damageAmount = oldHealth - sharedHealth;
+                float syncedDamageAmount = oldHealth - sharedHealth;
                 List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
 
                 // Broadcast damage notification to all players
                 // Convert from half-hearts to full hearts for display (Minecraft stores health as
                 // 0-20, where 1 heart = 2)
-                float damageInHearts = damageAmount / 2.0f;
+                float damageInHearts = syncedDamageAmount / 2.0f;
                 String damageText = String.format(java.util.Locale.US, "%.1f", damageInHearts);
                 net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
                         .append(RunManager.getPrefix())
@@ -179,7 +192,7 @@ public class SharedStatsHandler {
 
                     // Apply damage using the world-aware damage method
                     // The isSyncing flag prevents onPlayerHealthChanged from recursing
-                    player.damage(otherWorld, syncDamage, damageAmount);
+                    player.damage(otherWorld, syncDamage, syncedDamageAmount);
 
                     // Safety check: if player "died" due to local damage but shared health remains,
                     // restore them
@@ -197,6 +210,66 @@ public class SharedStatsHandler {
 
         } finally {
             isSyncing = false;
+        }
+    }
+
+    /**
+     * Handles periodic damage (Poison/Wither) by normalizing it by player count and using an
+     * accumulator.
+     */
+    private static void handlePeriodicDamage(ServerPlayerEntity damagedPlayer, float damageAmount) {
+        RunManager runManager = RunManager.getInstance();
+        MinecraftServer server = runManager.getServer();
+        if (server == null)
+            return;
+
+        // Count players in the run
+        int playerCount = 0;
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            ServerWorld world = getPlayerWorld(player);
+            if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
+                playerCount++;
+            }
+        }
+
+        if (playerCount == 0)
+            return;
+
+        // Divide the damage by player count and accumulate
+        float normalizedDamage = damageAmount / playerCount;
+        damageAccumulator += normalizedDamage;
+
+        SoulLink.LOGGER.debug(
+                "[DAMAGE DEBUG] Player {} took {} periodic damage, normalized to {} ({} players), accumulator now {}",
+                damagedPlayer.getName().getString(), damageAmount, normalizedDamage, playerCount,
+                damageAccumulator);
+
+        // Only apply damage when we've accumulated at least 0.5 HP
+        if (damageAccumulator >= 0.5f) {
+            float damageToApply = damageAccumulator;
+            damageAccumulator = 0.0f;
+
+            float oldHealth = sharedHealth;
+            sharedHealth = MathHelper.clamp(sharedHealth - damageToApply, 0.0f, getMaxHealth());
+
+            // Sync to all players
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                ServerWorld otherWorld = getPlayerWorld(player);
+                if (otherWorld == null || !runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                    continue;
+
+                player.setHealth(sharedHealth);
+            }
+
+            SoulLink.LOGGER.debug("[DAMAGE DEBUG] Applied {} periodic damage: {} -> {}",
+                    damageToApply, oldHealth, sharedHealth);
+
+            if (sharedHealth <= 0) {
+                runManager.triggerGameOver();
+            }
+        } else {
+            // Revert the damage to the player since it hasn't reached the threshold yet
+            damagedPlayer.setHealth(sharedHealth);
         }
     }
 
@@ -232,6 +305,9 @@ public class SharedStatsHandler {
 
                 for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                     if (player == healedPlayer)
+                        continue;
+
+                    if (player.isSpectator() || player.isCreative())
                         continue;
 
                     ServerWorld otherWorld = getPlayerWorld(player);

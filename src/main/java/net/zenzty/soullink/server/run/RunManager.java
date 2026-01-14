@@ -27,7 +27,7 @@ import net.zenzty.soullink.server.settings.Settings;
  */
 public class RunManager {
 
-    private static RunManager instance;
+    private static volatile RunManager instance;
 
     private final MinecraftServer server;
     private final WorldService worldService;
@@ -129,7 +129,7 @@ public class RunManager {
         SoulLink.LOGGER.info("Starting new run...");
 
         // Apply any pending settings
-        Settings.getInstance().applyPendingSharedJumping();
+        Settings.getInstance().applyPendingSettings();
 
         // Broadcast starting message
         server.getPlayerManager().broadcast(formatMessage("Generating new world..."), false);
@@ -323,7 +323,7 @@ public class RunManager {
     /**
      * Handles victory - Ender Dragon killed.
      */
-    public void triggerVictory() {
+    public synchronized void triggerVictory() {
         if (gameState != RunState.RUNNING) {
             return;
         }

@@ -38,6 +38,11 @@ public class PlayerTeleportService {
      */
     public void teleportToSpawn(ServerPlayerEntity player, ServerWorld world, BlockPos spawnPos,
             TimerService timerService) {
+        if (player == null || world == null || spawnPos == null || timerService == null) {
+            SoulLink.LOGGER.error("Failed to teleport to spawn: null parameter(s)");
+            return;
+        }
+
         // Reset player for the run
         resetPlayer(player);
 
@@ -46,7 +51,9 @@ public class PlayerTeleportService {
                 Set.of(), 0, 0, true);
 
         // Clear any title
-        player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
+        if (player.networkHandler != null) {
+            player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
+        }
 
         // Sync stats
         SharedStatsHandler.syncPlayerToSharedStats(player);
@@ -63,10 +70,21 @@ public class PlayerTeleportService {
      * Teleports a player to the vanilla overworld spawn.
      */
     public void teleportToVanillaSpawn(ServerPlayerEntity player) {
+        if (player == null || server == null)
+            return;
+
         ServerWorld overworld = server.getOverworld();
+        if (overworld == null)
+            return;
 
         net.minecraft.world.WorldProperties.SpawnPoint spawn =
                 overworld.getLevelProperties().getSpawnPoint();
+
+        if (spawn == null || spawn.globalPos() == null) {
+            SoulLink.LOGGER.error("Could not find vanilla spawn point!");
+            return;
+        }
+
         BlockPos spawnPos = spawn.globalPos().pos();
 
         player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,

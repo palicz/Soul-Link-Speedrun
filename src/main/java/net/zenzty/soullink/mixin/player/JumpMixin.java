@@ -9,8 +9,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
 
 /**
- * Mixin to detect when players jump. When shared jumping is enabled, plays a sound to other
- * players.
+ * Mixin to detect when players jump. When shared jumping is enabled, registers the jump for
+ * synchronized force-jumping of other players at tick end.
  */
 @Mixin(LivingEntity.class)
 public abstract class JumpMixin {

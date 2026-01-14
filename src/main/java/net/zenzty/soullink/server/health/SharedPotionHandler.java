@@ -98,7 +98,8 @@ public class SharedPotionHandler {
      * Checks if an effect is an instant effect (like healing or harming).
      */
     public static boolean isInstantEffect(RegistryEntry<StatusEffect> effect) {
-        return effect == StatusEffects.INSTANT_HEALTH || effect == StatusEffects.INSTANT_DAMAGE;
+        return effect.getKey().equals(StatusEffects.INSTANT_HEALTH.getKey())
+                || effect.getKey().equals(StatusEffects.INSTANT_DAMAGE.getKey());
     }
 
     /**
@@ -144,14 +145,8 @@ public class SharedPotionHandler {
 
         RegistryEntry<StatusEffect> effectType = effect.getEffectType();
 
-        // Instant healing is excluded from shared effects - let it work normally
-        // Each player hit by the splash potion gets healed independently
-        if (effectType == StatusEffects.INSTANT_HEALTH) {
-            return true;
-        }
-
-        // Handle instant damage - only allow the closest player to receive it
-        if (effectType == StatusEffects.INSTANT_DAMAGE) {
+        // Handle instant effects (healing and damage) - only allow the closest player to receive it
+        if (isInstantEffect(effectType)) {
             try {
                 return handleInstantEffect(player, effect, runManager);
             } catch (Exception e) {
@@ -250,7 +245,7 @@ public class SharedPotionHandler {
                 int amplifier = effect.getAmplifier();
 
                 if (effectType == StatusEffects.INSTANT_HEALTH) {
-                    // Instant Health heals 4 HP per level (2 hearts)
+                    // Instant Health heals 4 × 2^amplifier HP (4 at level 1, 8 at level 2, etc.)
                     float healAmount = (float) (4 << amplifier);
                     player.heal(healAmount);
                     SoulLink.LOGGER.debug("Applied instant health ({} HP) to closest player: {}",
@@ -269,10 +264,9 @@ public class SharedPotionHandler {
             }
         }
 
-        ServerPlayerEntity closestPlayer = server.getPlayerManager().getPlayer(closestPlayerUuid);
         SoulLink.LOGGER.info("Splash instant effect: {} players affected, applied to closest: {}",
                 splashEvent.playerPositions.size(),
-                closestPlayer != null ? closestPlayer.getName().getString() : "unknown");
+                player != null ? player.getName().getString() : "unknown");
     }
 
     /**

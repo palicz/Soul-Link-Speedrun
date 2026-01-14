@@ -50,13 +50,11 @@ public class WorldService {
         // Generate new seed for this run
         currentSeed = new Random().nextLong();
 
-        // Get the vanilla overworld for reference
-        ServerWorld vanillaOverworld = server.getOverworld();
-
         // Get the difficulty from settings
         Difficulty serverDifficulty = Settings.getInstance().getDifficulty();
 
         // Create temporary Overworld
+        ServerWorld vanillaOverworld = server.getOverworld();
         RuntimeWorldConfig overworldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD).setDifficulty(serverDifficulty)
                 .setGameRule(GameRules.ADVANCE_TIME, true).setSeed(currentSeed)

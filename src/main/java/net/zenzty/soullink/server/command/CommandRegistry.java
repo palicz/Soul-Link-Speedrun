@@ -134,9 +134,6 @@ public class CommandRegistry {
 
                                         // /reset - Manually reset the current run
                                         dispatcher.register(CommandManager.literal("reset")
-                                                        .requires(CommandManager
-                                                                        .requirePermissionLevel(
-                                                                                        CommandManager.GAMEMASTERS_CHECK))
                                                         .executes(context -> {
                                                                 RunManager runManager = RunManager
                                                                                 .getInstance();
