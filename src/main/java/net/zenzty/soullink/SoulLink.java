@@ -136,6 +136,27 @@ public class SoulLink implements ModInitializer {
                         .sendError(RunManager.formatMessage("Only players can use this command."));
                 return 0;
             }));
+
+            // /reset - Manually reset the current run
+            // Command doesn't require gamemaster permissions, so any player can use it during an
+            // active run.
+            dispatcher.register(CommandManager.literal("reset").executes(context -> {
+                RunManager runManager = RunManager.getInstance();
+
+                if (runManager == null || !runManager.isRunActive()) {
+                    context.getSource()
+                            .sendError(RunManager.formatMessage("No active run to reset."));
+                    return 0;
+                }
+
+                // Perform the reset first
+                runManager.triggerGameOver();
+
+                // Broadcast reset message to all players after successful reset
+                runManager.getServer().getPlayerManager()
+                        .broadcast(RunManager.formatMessage("Run has been reset."), false);
+                return Command.SINGLE_SUCCESS;
+            }));
         });
     }
 
