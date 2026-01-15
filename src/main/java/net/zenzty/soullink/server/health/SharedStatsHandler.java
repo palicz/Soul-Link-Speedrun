@@ -30,6 +30,9 @@ public class SharedStatsHandler {
     // Accumulator for fractional natural regen (since we divide by player count)
     private static volatile float regenAccumulator = 0.0f;
 
+    // Accumulator for fractional regeneration effect healing (since we divide by player count)
+    private static volatile float regenerationHealAccumulator = 0.0f;
+
     // Accumulators for fractional hunger/saturation drain (since we divide by player count)
     private static volatile float hungerDrainAccumulator = 0.0f;
     private static volatile float saturationDrainAccumulator = 0.0f;
@@ -57,6 +60,7 @@ public class SharedStatsHandler {
         sharedAbsorption = 0.0f;
         isSyncing = false;
         regenAccumulator = 0.0f;
+        regenerationHealAccumulator = 0.0f;
         hungerDrainAccumulator = 0.0f;
         saturationDrainAccumulator = 0.0f;
         damageAccumulator = 0.0f;
@@ -274,8 +278,11 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player heals (regeneration, eating golden apple, etc.) Updates the master
-     * health and syncs to all players.
+     * Called when a player heals (potions, etc.) Updates the master health and syncs to all
+     * players.
+     * 
+     * Note: Regeneration effect healing is handled separately by onRegenerationHeal() to normalize
+     * by player count.
      */
     public static void onPlayerHealed(ServerPlayerEntity healedPlayer, float newHealth) {
         if (isSyncing)
@@ -325,6 +332,90 @@ public class SharedStatsHandler {
 
         } finally {
             isSyncing = false;
+        }
+    }
+
+    /**
+     * Called when a player heals from a regeneration effect. The healing amount is divided by the
+     * number of players in the run to normalize regen speed.
+     * 
+     * Without this, N players with regeneration = Nx healing speed since each player's regen would
+     * stack.
+     */
+    public static void onRegenerationHeal(ServerPlayerEntity regenPlayer, float healAmount) {
+        if (isSyncing)
+            return;
+
+        RunManager runManager = RunManager.getInstance();
+        if (runManager == null || !runManager.isRunActive())
+            return;
+
+        ServerWorld playerWorld = getPlayerWorld(regenPlayer);
+        if (playerWorld == null)
+            return;
+
+        if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
+            return;
+
+        MinecraftServer server = runManager.getServer();
+        if (server == null)
+            return;
+
+        // Count players in the run
+        int playerCount = 0;
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            ServerWorld world = getPlayerWorld(player);
+            if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
+                playerCount++;
+            }
+        }
+
+        if (playerCount == 0)
+            return;
+
+        // Divide the heal amount by player count and accumulate
+        float normalizedHeal = healAmount / playerCount;
+        regenerationHealAccumulator += normalizedHeal;
+
+        SoulLink.LOGGER.debug(
+                "[REGEN EFFECT DEBUG] Player {} healed {} HP from regeneration, normalized to {} ({} players), accumulator now {}",
+                regenPlayer.getName().getString(), healAmount, normalizedHeal, playerCount,
+                regenerationHealAccumulator);
+
+        // Only apply healing when we've accumulated at least 0.5 HP (prevents constant tiny
+        // updates)
+        if (regenerationHealAccumulator >= 0.5f) {
+            float healToApply = regenerationHealAccumulator;
+            regenerationHealAccumulator = 0.0f;
+
+            isSyncing = true;
+            try {
+                float oldHealth = sharedHealth;
+                sharedHealth = MathHelper.clamp(sharedHealth + healToApply, 0.0f, getMaxHealth());
+
+                if (sharedHealth > oldHealth) {
+                    // Sync to all players
+                    for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                        ServerWorld otherWorld = getPlayerWorld(player);
+                        if (otherWorld == null)
+                            continue;
+
+                        if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                            continue;
+
+                        player.setHealth(sharedHealth);
+                    }
+
+                    SoulLink.LOGGER.debug(
+                            "[REGEN EFFECT DEBUG] Applied {} HP healing from regeneration: {} -> {} ({} players in run)",
+                            healToApply, oldHealth, sharedHealth, playerCount);
+                }
+            } finally {
+                isSyncing = false;
+            }
+        } else {
+            // Revert the healing to the player since it hasn't reached the threshold yet
+            regenPlayer.setHealth(sharedHealth);
         }
     }
 

@@ -62,6 +62,10 @@ public abstract class LivingEntityMixin {
         if (isNaturalRegen) {
             // Let SharedStatsHandler handle the normalized regen
             SharedStatsHandler.onNaturalRegen(player, applied);
+        } else if (player.hasStatusEffect(StatusEffects.REGENERATION)) {
+            // Regeneration effect healing - normalize by player count to prevent multiplication
+            // when regeneration is synced to all players
+            SharedStatsHandler.onRegenerationHeal(player, applied);
         } else {
             // Larger heals (potions, golden apples) sync normally
             SharedStatsHandler.onPlayerHealed(player, player.getHealth());
