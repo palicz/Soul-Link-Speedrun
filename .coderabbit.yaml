@@ -1,0 +1,139 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: 'Provide professional, concise, and technically accurate feedback. Focus on Minecraft Fabric modding best practices, performance, and thread safety.'
+early_access: false
+enable_free_tier: true
+reviews:
+  profile: chill
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_placeholder: '@coderabbitai summary'
+  auto_title_placeholder: '@coderabbitai'
+  review_status: true
+  commit_status: true
+  poem: false
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  changed_files_summary: true
+  labeling_instructions: []
+  path_filters:
+    - '**/*'
+    - '!**/test/**/gen/**'
+    - '!**/.git/**'
+    - '!**/target/**'
+    - '!**/build/**'
+    - '!**/.gradle/**'
+  path_instructions:
+    - path: '**/*.java'
+      instructions: |
+        - **Java Version**: Review code using Java 21 standards (e.g., records, pattern matching, checking for nulls).
+        - **Logging**: Use SLF4J (e.g., `private static final Logger LOGGER = LoggerFactory.getLogger(MyClass.class);`) for logging. **DO NOT** use `System.out.println` or `System.err.println`.
+        - **Null Safety**: Be strict about null checks. Use `java.util.Optional` where appropriate, but prefer explicit null checks in performance-critical code.
+        - **Performance**: This is a Minecraft mod. Avoid allocations in hot paths (tick loops). Prefer primitives over boxed types where possible.
+
+    - path: '**/mixin/**/*.java'
+      instructions: |
+        - **Mixin Best Practices**:
+          - Prefer `@Inject` over `@Overwrite`.
+          - Ensure `@Inject` methods capture locals gracefully and check for cancellation if `cancellable = true`.
+          - Use unique names for callback methods to avoid collisions.
+          - Validate that Mixin targets are correct and specific.
+
+    - path: '**/server/**/*.java'
+      instructions: |
+        - **Threading**: Minecraft server logic (world modification, entity manipulation) **MUST** run on the main Server Thread. If code is running asynchronously, ensure it schedules tasks back to the main thread using `server.execute()`.
+        - **State Management**: Ensure singleton services like `RunManager` handle state transitions cleanly.
+        - **API Usage**: Use Fabric API events instead of obscure internal hacks where possible.
+
+    - path: '**/build.gradle*'
+      instructions: |
+        - Ensure dependencies use compatible versions for Minecraft 1.21+.
+        - Check that the `archivesBaseName` and version properties are consistent.
+
+  abort_on_close: true
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    ignore_title_keywords: []
+    labels: []
+    drafts: false
+    base_branches:
+      - 'dev'
+  tools:
+    shellcheck:
+      enabled: true
+    ruff:
+      enabled: false
+    markdownlint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
+    languagetool:
+      enabled: true
+      enabled_only: false
+      level: default
+      enabled_rules: []
+      disabled_rules:
+        - EN_UNPAIRED_BRACKETS
+      enabled_categories: []
+      disabled_categories:
+        - TYPOS
+        - TYPOGRAPHY
+        - CASING
+    biome:
+      enabled: false
+    hadolint:
+      enabled: false
+    swiftlint:
+      enabled: false
+    phpstan:
+      enabled: false
+      level: default
+    golangci-lint:
+      enabled: false
+    yamllint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    checkov:
+      enabled: false
+    detekt:
+      enabled: false
+    eslint:
+      enabled: false
+    rubocop:
+      enabled: false
+    buf:
+      enabled: false
+    regal:
+      enabled: false
+    actionlint:
+      enabled: true
+    pmd:
+      enabled: true
+    cppcheck:
+      enabled: false
+    semgrep:
+      enabled: true
+    circleci:
+      enabled: false
+    ast-grep:
+      packages: []
+      rule_dirs: []
+      util_dirs: []
+      essential_rules: true
+chat:
+  auto_reply: true
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  jira:
+    project_keys: []
+  linear:
+    team_keys: []
+  pull_requests:
+    scope: auto
