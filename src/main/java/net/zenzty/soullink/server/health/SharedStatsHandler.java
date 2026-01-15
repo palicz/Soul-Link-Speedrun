@@ -163,8 +163,10 @@ public class SharedStatsHandler {
                 // Broadcast damage notification to all players
                 // Convert from half-hearts to full hearts for display (Minecraft stores health as
                 // 0-20, where 1 heart = 2)
+                // Round to nearest 0.5 hearts and ensure minimum of 0.5 for display
                 float damageInHearts = syncedDamageAmount / 2.0f;
-                String damageText = String.format(java.util.Locale.US, "%.1f", damageInHearts);
+                float roundedDamage = Math.max(0.5f, Math.round(damageInHearts * 2.0f) / 2.0f);
+                String damageText = String.format(java.util.Locale.US, "%.1f", roundedDamage);
                 net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
                         .append(RunManager.getPrefix())
                         .append(net.minecraft.text.Text.literal(damagedPlayer.getName().getString())
