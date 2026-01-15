@@ -1,5 +1,6 @@
 package net.zenzty.soullink.server.settings;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.component.DataComponentTypes;
@@ -16,6 +17,7 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -36,6 +38,7 @@ public class SettingsGui {
     private static final int HALF_HEART_SLOT = 12;
     private static final int SHARED_POTIONS_SLOT = 14;
     private static final int SHARED_JUMPING_SLOT = 16;
+    private static final int BUG_REPORT_SLOT = 47;
     private static final int CONFIRM_SLOT = 49; // Bottom center
 
     // Size of double chest
@@ -126,6 +129,9 @@ public class SettingsGui {
 
             // Add confirm button
             setStack(CONFIRM_SLOT, createConfirmItem());
+
+            // Add bug report / discord button
+            setStack(BUG_REPORT_SLOT, createBugReportItem());
         }
 
         private ItemStack createDifficultyItem() {
@@ -202,7 +208,7 @@ public class SettingsGui {
                     new ItemStack(pendingSharedPotions ? Items.DRAGON_BREATH : Items.GLASS_BOTTLE);
 
             item.set(DataComponentTypes.CUSTOM_NAME,
-                    createItemName("Shared Potions Mode", Formatting.AQUA, Formatting.BOLD));
+                    createItemName("Shared Potions Mode", Formatting.BLUE, Formatting.BOLD));
 
             LoreComponent sharedPotionsLore = new LoreComponent(List.of(
                     Text.literal("Status: ")
@@ -310,6 +316,23 @@ public class SettingsGui {
                     .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)));
 
             LoreComponent lore = new LoreComponent(loreLines);
+            item.set(DataComponentTypes.LORE, lore);
+
+            return item;
+        }
+
+        private ItemStack createBugReportItem() {
+            ItemStack item = new ItemStack(Items.KNOWLEDGE_BOOK);
+            item.set(DataComponentTypes.CUSTOM_NAME,
+                    createItemName("Bug Report", Formatting.AQUA, Formatting.BOLD));
+
+            LoreComponent lore = new LoreComponent(List.of(
+                    Text.literal("Found a bug? Let us know!").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.literal("Join our Discord to report it.").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
+                    Text.empty(), Text.literal("Click to get the invite link in chat.").setStyle(
+                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY))));
             item.set(DataComponentTypes.LORE, lore);
 
             return item;
@@ -493,6 +516,20 @@ public class SettingsGui {
                 case SHARED_JUMPING_SLOT -> {
                     settingsInventory.toggleSharedJumping();
                     settingsInventory.populateItems();
+                    playClickSound();
+                }
+                case BUG_REPORT_SLOT -> {
+                    // Print Discord invite link to chat for easy copy/click.
+                    final String discordUrl = "https://discord.gg/7KkZP2r62H";
+                    player.sendMessage(
+                            RunManager.formatMessage("Report bugs and get support in our Discord:"),
+                            false);
+                    player.sendMessage(
+                            Text.literal(discordUrl).setStyle(Style.EMPTY.withItalic(false)
+                                    .withFormatting(Formatting.DARK_AQUA, Formatting.UNDERLINE)
+                                    .withClickEvent(
+                                            new ClickEvent.OpenUrl(URI.create(discordUrl)))),
+                            false);
                     playClickSound();
                 }
                 case CONFIRM_SLOT -> {
