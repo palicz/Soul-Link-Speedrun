@@ -16,7 +16,8 @@
 		"interaction.FireBlockMixin",
 		"ui.ScreenHandlerAccessor",
 		"ui.SpectatorInteractionMixin",
-		"server.ServerWorldAccessor"
+		"server.ServerWorldAccessor",
+		"server.EnderDragonFightAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
