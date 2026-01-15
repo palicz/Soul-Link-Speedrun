@@ -2,6 +2,8 @@ package net.zenzty.soullink.server.run;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.entity.boss.ServerBossBar;
+import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.registry.RegistryKey;
@@ -19,6 +21,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -136,6 +139,9 @@ public class RunManager {
         }
 
         SoulLink.LOGGER.info("Starting new run...");
+
+        // Clear any lingering Ender Dragon bossbar from previous run
+        clearEnderDragonBossbar();
 
         // Apply any pending settings
         Settings.getInstance().applyPendingSettings();
@@ -384,6 +390,30 @@ public class RunManager {
     private boolean isInRun(ServerPlayerEntity player) {
         ServerWorld world = getPlayerWorld(player);
         return world != null && isTemporaryWorld(world.getRegistryKey());
+    }
+
+    /**
+     * Clears the Ender Dragon bossbar from all players. This is needed when starting a new run
+     * before Minecraft has naturally cleaned up the dragon bossbar from a completed run.
+     */
+    private void clearEnderDragonBossbar() {
+        // Check all worlds for an active dragon fight and clear its bossbar
+        for (ServerWorld world : server.getWorlds()) {
+            EnderDragonFight fight = world.getEnderDragonFight();
+            if (fight != null) {
+                try {
+                    ServerBossBar bossBar = ((EnderDragonFightAccessor) fight).getBossBar();
+                    if (bossBar != null) {
+                        bossBar.clearPlayers();
+                        SoulLink.LOGGER.debug("Cleared Ender Dragon bossbar from world: {}",
+                                world.getRegistryKey().getValue());
+                    }
+                } catch (Exception e) {
+                    SoulLink.LOGGER.warn("Failed to clear Ender Dragon bossbar: {}",
+                            e.getMessage());
+                }
+            }
+        }
     }
 
     /**
