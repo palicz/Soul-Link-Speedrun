@@ -47,7 +47,15 @@ public class SettingsGui {
      */
     public static void open(ServerPlayerEntity player) {
         Settings settings = Settings.getInstance();
-        Settings.SettingsSnapshot originalSnapshot = settings.createSnapshot();
+        // Default difficulty should reflect the current world's actual difficulty.
+        // Normalize Peaceful -> Easy since the mod doesn't support Peaceful.
+        Difficulty worldDifficulty = player.getEntityWorld().getDifficulty();
+        if (worldDifficulty == Difficulty.PEACEFUL) {
+            worldDifficulty = Difficulty.EASY;
+        }
+
+        Settings.SettingsSnapshot originalSnapshot = new Settings.SettingsSnapshot(worldDifficulty,
+                settings.isHalfHeartMode(), settings.isSharedPotions(), settings.isSharedJumping());
 
         // Create inventory with all slots
         SettingsInventory inventory = new SettingsInventory(originalSnapshot);
@@ -104,7 +112,7 @@ public class SettingsGui {
                 setStack(i, filler.copy());
             }
 
-            // Add difficulty setting (Redstone Block)
+            // Add difficulty setting
             setStack(DIFFICULTY_SLOT, createDifficultyItem());
 
             // Add half heart setting
@@ -121,7 +129,12 @@ public class SettingsGui {
         }
 
         private ItemStack createDifficultyItem() {
-            ItemStack item = new ItemStack(Items.REDSTONE_BLOCK);
+            ItemStack item = new ItemStack(switch (pendingDifficulty) {
+                case EASY -> Items.WOODEN_SWORD;
+                case NORMAL -> Items.IRON_SWORD;
+                case HARD -> Items.DIAMOND_SWORD;
+                default -> Items.WOODEN_SWORD;
+            });
             item.set(DataComponentTypes.CUSTOM_NAME,
                     createItemName("Difficulty", Formatting.RED, Formatting.BOLD));
 
@@ -204,9 +217,7 @@ public class SettingsGui {
                     Text.empty(),
                     Text.literal("Potion effects are shared between").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
-                    Text.literal("all players. Instant potions affect").setStyle(
-                            Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
-                    Text.literal("one player then sync to others.").setStyle(
+                    Text.literal("all players.").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY)),
                     Text.empty(), Text.literal("Click to toggle").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.DARK_GRAY))));
