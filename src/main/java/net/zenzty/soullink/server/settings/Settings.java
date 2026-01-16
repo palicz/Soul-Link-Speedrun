@@ -1,6 +1,5 @@
 package net.zenzty.soullink.server.settings;
 
-import net.minecraft.world.Difficulty;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.run.RunState;
@@ -14,7 +13,7 @@ public class Settings {
     private static final Settings instance = new Settings();
 
     // Current active settings (used during runs)
-    private Difficulty difficulty = Difficulty.NORMAL;
+    private RunDifficulty difficulty = RunDifficulty.NORMAL;
     private boolean halfHeartMode = false;
     private boolean sharedPotions = false;
     private boolean sharedJumping = false;
@@ -30,24 +29,23 @@ public class Settings {
 
     // ==================== DIFFICULTY ====================
 
-    public Difficulty getDifficulty() {
+    public RunDifficulty getDifficulty() {
         return difficulty;
     }
 
-    public void setDifficulty(Difficulty difficulty) {
-        // Normalize Peaceful to Easy since mod doesn't support it
-        this.difficulty = (difficulty == Difficulty.PEACEFUL) ? Difficulty.EASY : difficulty;
+    public void setDifficulty(RunDifficulty difficulty) {
+        this.difficulty = difficulty == null ? RunDifficulty.NORMAL : difficulty;
+    }
+
+    public net.minecraft.world.Difficulty getVanillaDifficulty() {
+        return difficulty.toVanilla();
     }
 
     /**
      * Cycles to the next difficulty level. Order: EASY -> NORMAL -> HARD -> EASY (no Peaceful)
      */
-    public Difficulty getNextDifficulty() {
-        return switch (difficulty) {
-            case PEACEFUL, EASY -> Difficulty.NORMAL;
-            case NORMAL -> Difficulty.HARD;
-            case HARD -> Difficulty.EASY;
-        };
+    public RunDifficulty getNextDifficulty() {
+        return difficulty.next();
     }
 
     // ==================== HALF HEART MODE ====================
@@ -145,7 +143,7 @@ public class Settings {
     /**
      * Immutable snapshot of settings for comparison and temporary editing.
      */
-    public record SettingsSnapshot(Difficulty difficulty, boolean halfHeartMode,
+    public record SettingsSnapshot(RunDifficulty difficulty, boolean halfHeartMode,
             boolean sharedPotions, boolean sharedJumping) {
     }
 }

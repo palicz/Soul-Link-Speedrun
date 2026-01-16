@@ -19,7 +19,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 import net.zenzty.soullink.mixin.ui.ScreenHandlerAccessor;
 import net.zenzty.soullink.server.run.RunManager;
@@ -47,14 +46,8 @@ public class SettingsGui {
      */
     public static void open(ServerPlayerEntity player) {
         Settings settings = Settings.getInstance();
-        // Default difficulty should reflect the current world's actual difficulty.
-        // Normalize Peaceful -> Easy since the mod doesn't support Peaceful.
-        Difficulty worldDifficulty = player.getEntityWorld().getDifficulty();
-        if (worldDifficulty == Difficulty.PEACEFUL) {
-            worldDifficulty = Difficulty.EASY;
-        }
-
-        Settings.SettingsSnapshot originalSnapshot = new Settings.SettingsSnapshot(worldDifficulty,
+        RunDifficulty currentDifficulty = settings.getDifficulty();
+        Settings.SettingsSnapshot originalSnapshot = new Settings.SettingsSnapshot(currentDifficulty,
                 settings.isHalfHeartMode(), settings.isSharedPotions(), settings.isSharedJumping());
 
         // Create inventory with all slots
@@ -84,7 +77,7 @@ public class SettingsGui {
      */
     public static class SettingsInventory extends SimpleInventory {
 
-        private Difficulty pendingDifficulty;
+        private RunDifficulty pendingDifficulty;
         private boolean pendingHalfHeart;
         private boolean pendingSharedPotions;
         private boolean pendingSharedJumping;
@@ -133,23 +126,18 @@ public class SettingsGui {
                 case EASY -> Items.WOODEN_SWORD;
                 case NORMAL -> Items.IRON_SWORD;
                 case HARD -> Items.DIAMOND_SWORD;
-                default -> Items.WOODEN_SWORD;
+                case EXTREME -> Items.NETHERITE_SWORD;
             });
             item.set(DataComponentTypes.CUSTOM_NAME,
                     createItemName("Difficulty", Formatting.RED, Formatting.BOLD));
 
-            String difficultyName = switch (pendingDifficulty) {
-                case PEACEFUL -> "Peaceful";
-                case EASY -> "Easy";
-                case NORMAL -> "Normal";
-                case HARD -> "Hard";
-            };
+            String difficultyName = getDifficultyName(pendingDifficulty);
 
             Formatting difficultyColor = switch (pendingDifficulty) {
                 case EASY -> Formatting.GREEN;
                 case NORMAL -> Formatting.YELLOW;
                 case HARD -> Formatting.RED;
-                default -> Formatting.WHITE;
+                case EXTREME -> Formatting.DARK_RED;
             };
 
             LoreComponent difficultyLore = new LoreComponent(List.of(
@@ -268,7 +256,7 @@ public class SettingsGui {
                 case EASY -> Formatting.GREEN;
                 case NORMAL -> Formatting.YELLOW;
                 case HARD -> Formatting.RED;
-                default -> Formatting.WHITE;
+                case EXTREME -> Formatting.DARK_RED;
             };
             loreLines.add(Text.literal("  • Difficulty: ")
                     .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
@@ -331,7 +319,7 @@ public class SettingsGui {
             return original;
         }
 
-        public Difficulty getPendingDifficulty() {
+        public RunDifficulty getPendingDifficulty() {
             return pendingDifficulty;
         }
 
@@ -349,11 +337,7 @@ public class SettingsGui {
 
         // Setters for pending values
         public void cycleDifficulty() {
-            pendingDifficulty = switch (pendingDifficulty) {
-                case PEACEFUL, EASY -> Difficulty.NORMAL;
-                case NORMAL -> Difficulty.HARD;
-                case HARD -> Difficulty.EASY;
-            };
+            pendingDifficulty = pendingDifficulty.next();
         }
 
         public void toggleHalfHeart() {
@@ -603,7 +587,7 @@ public class SettingsGui {
             server.getPlayerManager().broadcast(footerMsg, false);
         }
 
-        private String getDifficultyName(Difficulty difficulty) {
+        private String getDifficultyName(RunDifficulty difficulty) {
             return SettingsGui.getDifficultyName(difficulty);
         }
 
@@ -636,12 +620,12 @@ public class SettingsGui {
         }
     }
 
-    private static String getDifficultyName(net.minecraft.world.Difficulty difficulty) {
+    private static String getDifficultyName(RunDifficulty difficulty) {
         return switch (difficulty) {
-            case PEACEFUL -> "Peaceful";
             case EASY -> "Easy";
             case NORMAL -> "Normal";
             case HARD -> "Hard";
+            case EXTREME -> "Extreme";
         };
     }
 }

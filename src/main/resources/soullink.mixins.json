@@ -14,6 +14,7 @@
 		"interaction.FlintAndSteelMixin",
 		"interaction.FireChargeItemMixin",
 		"interaction.FireBlockMixin",
+		"entity.MobEntityMixin",
 		"ui.ScreenHandlerAccessor",
 		"ui.SpectatorInteractionMixin",
 		"server.ServerWorldAccessor",
