@@ -141,8 +141,10 @@ public class ManhuntManager {
             runnersTeam = scoreboard.addTeam(RUNNERS_TEAM);
         }
         runnersTeam.setDisplayName(Text.literal("Runners"));
-        runnersTeam.setColor(Formatting.GREEN);
-        runnersTeam.setPrefix(Text.literal("[RUNNER] ").formatted(Formatting.GREEN));
+        runnersTeam.setColor(Formatting.WHITE);
+        runnersTeam.setPrefix(Text.empty()
+                .append(Text.literal("Runner").formatted(Formatting.GREEN, Formatting.BOLD))
+                .append(Text.literal(" | ").formatted(Formatting.DARK_GRAY)));
 
         // Create or get Hunters team
         Team huntersTeam = scoreboard.getTeam(HUNTERS_TEAM);
@@ -150,8 +152,10 @@ public class ManhuntManager {
             huntersTeam = scoreboard.addTeam(HUNTERS_TEAM);
         }
         huntersTeam.setDisplayName(Text.literal("Hunters"));
-        huntersTeam.setColor(Formatting.RED);
-        huntersTeam.setPrefix(Text.literal("[HUNTER] ").formatted(Formatting.RED));
+        huntersTeam.setColor(Formatting.WHITE);
+        huntersTeam.setPrefix(Text.empty()
+                .append(Text.literal("Hunter").formatted(Formatting.RED, Formatting.BOLD))
+                .append(Text.literal(" | ").formatted(Formatting.DARK_GRAY)));
 
         SoulLink.LOGGER.info("Manhunt teams created/updated");
     }

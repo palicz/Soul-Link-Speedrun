@@ -81,6 +81,11 @@ public class SharedStatsHandler {
         if (isSyncing)
             return;
 
+        // Hunters rely on vanilla stats, do not sync to shared stats
+        if (net.zenzty.soullink.server.manhunt.ManhuntManager.getInstance().isHunter(player)) {
+            return;
+        }
+
         isSyncing = true;
         try {
             player.setHealth(sharedHealth);

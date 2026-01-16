@@ -372,6 +372,10 @@ public class RunManager {
         teleportService.teleportToVanillaSpawn(player);
     }
 
+    public WorldService getWorldService() {
+        return worldService;
+    }
+
     // ==================== GETTERS ====================
 
     public RunState getGameState() {
@@ -424,6 +428,10 @@ public class RunManager {
 
     public ServerWorld getLinkedNetherWorld(ServerWorld fromWorld) {
         return worldService.getLinkedNetherWorld(fromWorld);
+    }
+
+    public net.minecraft.util.math.BlockPos getSpawnPos() {
+        return spawnFinder != null ? spawnFinder.getSpawnPos() : null;
     }
 
     public MinecraftServer getServer() {

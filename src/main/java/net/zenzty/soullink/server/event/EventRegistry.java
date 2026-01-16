@@ -18,6 +18,7 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.world.GameMode;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
@@ -65,6 +66,7 @@ public class EventRegistry {
 
             // Reset roles from previous sessions
             ManhuntManager.getInstance().resetRoles();
+            ManhuntManager.getInstance().cleanupTeams(server);
 
             // Set all players to survival mode (in case they were spectator from previous run)
             for (net.minecraft.server.network.ServerPlayerEntity player : server.getPlayerManager()
@@ -106,8 +108,9 @@ public class EventRegistry {
                 return;
             }
 
-            // IMMEDIATELY teleport if IDLE to prevent suffocation damage
+            // IMMEDIATELY teleport and reset if IDLE to prevent suffocation damage
             if (runManager.getGameState() == RunState.IDLE) {
+                player.changeGameMode(net.minecraft.world.GameMode.SURVIVAL);
                 runManager.teleportToVanillaSpawn(player);
             }
 
@@ -335,11 +338,12 @@ public class EventRegistry {
                     || player.getMainHandStack().isOf(net.minecraft.item.Items.TOTEM_OF_UNDYING);
 
             if (currentHealth - amount <= 0 && !hasTotem) {
-                // Hunters use vanilla death mechanics - allow the death to happen
+                // Hunters get custom death with respawn countdown (not game over)
                 if (ManhuntManager.getInstance().isHunter(player)) {
-                    SoulLink.LOGGER.info("Lethal damage to Hunter {} - allowing vanilla death",
+                    SoulLink.LOGGER.info("Lethal damage to Hunter {} - starting respawn countdown",
                             player.getName().getString());
-                    return true; // Allow the damage, Minecraft will handle death
+                    handleHunterDeath(player, source, runManager);
+                    return false; // Block the damage, we handle death ourselves
                 }
 
                 SoulLink.LOGGER.info(
@@ -424,6 +428,92 @@ public class EventRegistry {
 
         player.setHealth(player.getMaxHealth());
         runManager.triggerGameOver();
+    }
+
+    /**
+     * Handles Hunter death with spectator mode and respawn countdown. Hunters don't trigger game
+     * over, they respawn after 5 seconds.
+     */
+    public static void handleHunterDeath(ServerPlayerEntity player, DamageSource source,
+            RunManager runManager) {
+        MinecraftServer server = runManager.getServer();
+        if (server == null)
+            return;
+
+        // Broadcast death message
+        Text deathMessage = source.getDeathMessage(player);
+        Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
+                .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
+                .append(deathMessage.copy().formatted(Formatting.RED));
+        server.getPlayerManager().broadcast(formattedDeathMessage, false);
+
+        // Clear harmful effects
+        player.getStatusEffects().stream()
+                .filter(effect -> !effect.getEffectType().value().isBeneficial())
+                .map(effect -> effect.getEffectType()).toList().forEach(player::removeStatusEffect);
+        player.extinguish();
+
+        // Set to spectator mode
+        player.changeGameMode(GameMode.SPECTATOR);
+
+        // Clear inventory
+        player.getInventory().clear();
+        player.getEnderChestInventory().clear();
+
+        // Show countdown titles (5, 4, 3, 2, 1, RESPAWN)
+        for (int i = 5; i >= 1; i--) {
+            final int count = i;
+            scheduleDelayed((5 - i) * 20, () -> {
+                if (player.isRemoved() || !runManager.isRunActive())
+                    return;
+                player.networkHandler
+                        .sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(
+                                Text.literal(String.valueOf(count)).formatted(Formatting.RED,
+                                        Formatting.BOLD)));
+                player.networkHandler
+                        .sendPacket(new net.minecraft.network.packet.s2c.play.SubtitleS2CPacket(
+                                Text.literal("Respawning...").formatted(Formatting.GRAY)));
+            });
+        }
+
+        // After 5 seconds, show RESPAWN and teleport to spawn
+        scheduleDelayed(5 * 20, () -> {
+            if (player.isRemoved() || !runManager.isRunActive())
+                return;
+
+            // Show RESPAWN title
+            player.networkHandler
+                    .sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(
+                            Text.literal("RESPAWN").formatted(Formatting.GREEN, Formatting.BOLD)));
+
+            // Set to survival mode
+            player.changeGameMode(GameMode.SURVIVAL);
+
+            // Get the spawn point in temp world
+            ServerWorld tempOverworld = runManager.getWorldService().getOverworld();
+            net.minecraft.util.math.BlockPos spawnPos = runManager.getSpawnPos();
+
+            if (tempOverworld != null && spawnPos != null) {
+                // Set spawn point in the temporary world for respawning (User Request)
+                net.minecraft.world.WorldProperties.SpawnPoint spawnPoint =
+                        net.minecraft.world.WorldProperties.SpawnPoint
+                                .create(tempOverworld.getRegistryKey(), spawnPos, 0.0f, 0.0f);
+                ServerPlayerEntity.Respawn respawn =
+                        new ServerPlayerEntity.Respawn(spawnPoint, true);
+                player.setSpawnPoint(respawn, false);
+
+                // Teleport to the specific run spawn point
+                player.teleport(tempOverworld, spawnPos.getX() + 0.5, spawnPos.getY(),
+                        spawnPos.getZ() + 0.5, java.util.Set.of(), 0.0f, 0.0f, true);
+            }
+
+            // Reset health and hunger
+            player.setHealth(player.getMaxHealth());
+            player.getHungerManager().setFoodLevel(20);
+            player.getHungerManager().setSaturationLevel(5.0f);
+
+            SoulLink.LOGGER.info("Hunter {} respawned after death", player.getName().getString());
+        });
     }
 
     /**

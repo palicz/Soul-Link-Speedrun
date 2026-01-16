@@ -37,12 +37,17 @@ public abstract class ServerPlayerEntityMixin {
 
         ManhuntManager manhuntManager = ManhuntManager.getInstance();
 
-        // Hunters respawn normally with vanilla mechanics
+        // Hunters use custom death logic (spectator -> countdown -> respawn)
         if (manhuntManager.isHunter(player)) {
-            SoulLink.LOGGER.info("Hunter {} died - allowing vanilla respawn",
+            SoulLink.LOGGER.info("Hunter {} died - triggering custom respawn logic",
                     player.getName().getString());
-            // Don't cancel - let Minecraft handle the death normally
-            // The spawn point was set in PlayerTeleportService, so they'll respawn in temp world
+
+            // Cancel vanilla death
+            ci.cancel();
+
+            // Trigger custom death handler
+            net.zenzty.soullink.server.event.EventRegistry.handleHunterDeath(player, damageSource,
+                    runManager);
             return;
         }
 
