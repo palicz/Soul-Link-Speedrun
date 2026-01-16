@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -53,6 +54,11 @@ public class SharedJumpHandler {
         }
 
         if (!runManager.isTemporaryWorld(player.getEntityWorld().getRegistryKey())) {
+            return;
+        }
+
+        // Hunters are excluded from shared mechanics
+        if (ManhuntManager.getInstance().isHunter(player)) {
             return;
         }
 
@@ -126,6 +132,10 @@ public class SharedJumpHandler {
 
                 // Skip players who already jumped naturally this tick
                 if (jumpersThisTick.contains(player.getUuid()))
+                    continue;
+
+                // Hunters are excluded from shared jumping
+                if (ManhuntManager.getInstance().isHunter(player))
                     continue;
 
                 // Skip players who have already been forced to jump this tick

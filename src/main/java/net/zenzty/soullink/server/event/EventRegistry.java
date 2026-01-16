@@ -22,6 +22,7 @@ import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.run.RunState;
 
@@ -61,6 +62,18 @@ public class EventRegistry {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SoulLink.LOGGER.info("Server started - initializing RunManager");
             RunManager.init(server);
+
+            // Reset roles from previous sessions
+            ManhuntManager.getInstance().resetRoles();
+
+            // Set all players to survival mode (in case they were spectator from previous run)
+            for (net.minecraft.server.network.ServerPlayerEntity player : server.getPlayerManager()
+                    .getPlayerList()) {
+                if (player.interactionManager
+                        .getGameMode() == net.minecraft.world.GameMode.SPECTATOR) {
+                    player.changeGameMode(net.minecraft.world.GameMode.SURVIVAL);
+                }
+            }
         });
 
         // Server stopping - cleanup worlds
@@ -322,8 +335,15 @@ public class EventRegistry {
                     || player.getMainHandStack().isOf(net.minecraft.item.Items.TOTEM_OF_UNDYING);
 
             if (currentHealth - amount <= 0 && !hasTotem) {
+                // Hunters use vanilla death mechanics - allow the death to happen
+                if (ManhuntManager.getInstance().isHunter(player)) {
+                    SoulLink.LOGGER.info("Lethal damage to Hunter {} - allowing vanilla death",
+                            player.getName().getString());
+                    return true; // Allow the damage, Minecraft will handle death
+                }
+
                 SoulLink.LOGGER.info(
-                        "Lethal damage detected for {} ({} damage, {} health) - triggering game over!",
+                        "Lethal damage detected for Runner {} ({} damage, {} health) - triggering game over!",
                         player.getName().getString(), amount, currentHealth);
 
                 handlePlayerDeath(player, source, runManager);
@@ -357,8 +377,16 @@ public class EventRegistry {
                     }
 
                     if (player.getHealth() <= 0) {
+                        // Hunters use vanilla death mechanics - don't trigger game over
+                        if (ManhuntManager.getInstance().isHunter(player)) {
+                            SoulLink.LOGGER.info(
+                                    "Hunter {} reached 0 health - allowing vanilla death",
+                                    player.getName().getString());
+                            return;
+                        }
+
                         SoulLink.LOGGER.warn(
-                                "Player {} reached 0 health despite ALLOW_DAMAGE check - triggering game over",
+                                "Runner {} reached 0 health despite ALLOW_DAMAGE check - triggering game over",
                                 player.getName().getString());
 
                         handlePlayerDeath(player, source, runManager);
@@ -371,6 +399,11 @@ public class EventRegistry {
                     }
 
                     if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
+                        return;
+                    }
+
+                    // Hunters use vanilla mechanics - don't sync their damage
+                    if (ManhuntManager.getInstance().isHunter(player)) {
                         return;
                     }
 

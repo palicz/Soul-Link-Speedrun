@@ -65,8 +65,15 @@ public class CommandRegistry {
                         return 0;
                 }
 
-                // Start the run
-                runManager.startRun();
+                // Open role selector GUI
+                ServerPlayerEntity player = context.getSource().getPlayer();
+                if (player != null) {
+                        net.zenzty.soullink.server.manhunt.SpeedrunnerSelectorGui.open(player);
+                } else {
+                        context.getSource().sendError(RunManager
+                                        .formatMessage("Only players can use this command."));
+                        return 0;
+                }
 
                 return Command.SINGLE_SUCCESS;
         }
@@ -113,9 +120,6 @@ public class CommandRegistry {
                 Text info = Text.empty().append(RunManager.getPrefix())
                                 .append(Text.literal("State: ").formatted(Formatting.GRAY))
                                 .append(Text.literal(runManager.getGameState().name())
-                                                .formatted(Formatting.WHITE))
-                                .append(Text.literal(" | Time: ").formatted(Formatting.GRAY))
-                                .append(Text.literal(runManager.getFormattedTime())
                                                 .formatted(Formatting.WHITE))
                                 .append(Text.literal(" | Health: ").formatted(Formatting.GRAY))
                                 .append(Text.literal(String.format("%.1f",

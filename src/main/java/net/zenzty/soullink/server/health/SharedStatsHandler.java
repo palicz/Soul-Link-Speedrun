@@ -7,6 +7,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.MathHelper;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -128,6 +129,10 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(damagedPlayer))
+            return;
+
         isSyncing = true;
         try {
             float oldHealth = sharedHealth;
@@ -189,6 +194,10 @@ public class SharedStatsHandler {
 
                     // Skip players not in the run
                     if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                        continue;
+
+                    // Hunters are excluded from shared mechanics - don't sync to them
+                    if (ManhuntManager.getInstance().isHunter(player))
                         continue;
 
                     // Apply actual damage to trigger all client-side effects (red flash, screen
@@ -301,6 +310,10 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(healedPlayer))
+            return;
+
         isSyncing = true;
         try {
             float oldHealth = sharedHealth;
@@ -324,6 +337,10 @@ public class SharedStatsHandler {
                         continue;
 
                     if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                        continue;
+
+                    // Hunters are excluded from shared mechanics - don't sync to them
+                    if (ManhuntManager.getInstance().isHunter(player))
                         continue;
 
                     player.setHealth(sharedHealth);
@@ -359,16 +376,23 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(regenPlayer))
+            return;
+
         MinecraftServer server = runManager.getServer();
         if (server == null)
             return;
 
-        // Count players in the run
+        // Count RUNNERS only (Hunters are excluded from shared mechanics)
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
-                playerCount++;
+                // Only count Runners, not Hunters
+                if (!ManhuntManager.getInstance().isHunter(player)) {
+                    playerCount++;
+                }
             }
         }
 
@@ -403,6 +427,10 @@ public class SharedStatsHandler {
                             continue;
 
                         if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                            continue;
+
+                        // Hunters are excluded from shared mechanics
+                        if (ManhuntManager.getInstance().isHunter(player))
                             continue;
 
                         player.setHealth(sharedHealth);
@@ -440,6 +468,10 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(changedPlayer))
+            return;
+
         // Only sync if absorption actually changed
         if (Math.abs(newAbsorption - sharedAbsorption) < 0.1f)
             return;
@@ -463,6 +495,10 @@ public class SharedStatsHandler {
                     continue;
 
                 if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                    continue;
+
+                // Hunters are excluded from shared mechanics
+                if (ManhuntManager.getInstance().isHunter(player))
                     continue;
 
                 player.setAbsorptionAmount(sharedAbsorption);
@@ -497,16 +533,23 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(regenPlayer))
+            return;
+
         MinecraftServer server = runManager.getServer();
         if (server == null)
             return;
 
-        // Count players in the run
+        // Count RUNNERS only (Hunters are excluded from shared mechanics)
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
-                playerCount++;
+                // Only count Runners, not Hunters
+                if (!ManhuntManager.getInstance().isHunter(player)) {
+                    playerCount++;
+                }
             }
         }
 
@@ -543,6 +586,10 @@ public class SharedStatsHandler {
                         if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
                             continue;
 
+                        // Hunters are excluded from shared mechanics
+                        if (ManhuntManager.getInstance().isHunter(player))
+                            continue;
+
                         player.setHealth(sharedHealth);
                     }
 
@@ -575,6 +622,10 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(player))
+            return;
+
         isSyncing = true;
         try {
             // Check if values actually changed
@@ -601,6 +652,10 @@ public class SharedStatsHandler {
                     continue;
 
                 if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                    continue;
+
+                // Hunters are excluded from shared mechanics
+                if (ManhuntManager.getInstance().isHunter(otherPlayer))
                     continue;
 
                 otherPlayer.getHungerManager().setFoodLevel(sharedHunger);
@@ -637,16 +692,23 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(drainPlayer))
+            return;
+
         MinecraftServer server = runManager.getServer();
         if (server == null)
             return;
 
-        // Count players in the run
+        // Count RUNNERS only (Hunters are excluded from shared mechanics)
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
-                playerCount++;
+                // Only count Runners, not Hunters
+                if (!ManhuntManager.getInstance().isHunter(player)) {
+                    playerCount++;
+                }
             }
         }
 
@@ -689,6 +751,10 @@ public class SharedStatsHandler {
                     if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
                         continue;
 
+                    // Hunters are excluded from shared mechanics
+                    if (ManhuntManager.getInstance().isHunter(player))
+                        continue;
+
                     player.getHungerManager().setFoodLevel(sharedHunger);
                     player.getHungerManager().setSaturationLevel(sharedSaturation);
                 }
@@ -727,11 +793,13 @@ public class SharedStatsHandler {
                 if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
                     continue;
 
+                // Hunters are excluded from shared mechanics - don't sync their stats
+                if (ManhuntManager.getInstance().isHunter(player))
+                    continue;
+
                 // If player's values drift from master, correct them
                 float playerHealth = player.getHealth();
                 float playerAbsorption = player.getAbsorptionAmount();
-                int playerFood = player.getHungerManager().getFoodLevel();
-                float playerSat = player.getHungerManager().getSaturationLevel();
 
                 if (Math.abs(playerHealth - sharedHealth) > 0.5f) {
                     player.setHealth(sharedHealth);
@@ -739,12 +807,9 @@ public class SharedStatsHandler {
                 if (Math.abs(playerAbsorption - sharedAbsorption) > 0.5f) {
                     player.setAbsorptionAmount(sharedAbsorption);
                 }
-                if (playerFood != sharedHunger) {
-                    player.getHungerManager().setFoodLevel(sharedHunger);
-                }
-                if (Math.abs(playerSat - sharedSaturation) > 0.5f) {
-                    player.getHungerManager().setSaturationLevel(sharedSaturation);
-                }
+                // NOTE: Hunger/saturation sync is handled by HungerManagerMixin and
+                // onNaturalHungerDrain with accumulators. Forcing sync here would
+                // fight with the accumulator and cause the "bounce back" effect.
             }
         } finally {
             isSyncing = false;

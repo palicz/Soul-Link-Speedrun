@@ -9,6 +9,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 
 /**
@@ -46,6 +47,11 @@ public abstract class LivingEntityMixin {
         // Only sync if run is active and not already syncing
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive() || SharedStatsHandler.isSyncing()) {
+            return;
+        }
+
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(player)) {
             return;
         }
 

@@ -15,6 +15,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -140,6 +141,11 @@ public class SharedPotionHandler {
         }
 
         if (!runManager.isTemporaryWorld(player.getEntityWorld().getRegistryKey())) {
+            return true;
+        }
+
+        // Hunters are excluded from shared mechanics
+        if (ManhuntManager.getInstance().isHunter(player)) {
             return true;
         }
 
@@ -320,6 +326,10 @@ public class SharedPotionHandler {
 
                 ServerWorld otherWorld = otherPlayer.getEntityWorld();
                 if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                    continue;
+
+                // Hunters are excluded from shared potions
+                if (ManhuntManager.getInstance().isHunter(otherPlayer))
                     continue;
 
                 // Apply a copy of the effect to the other player

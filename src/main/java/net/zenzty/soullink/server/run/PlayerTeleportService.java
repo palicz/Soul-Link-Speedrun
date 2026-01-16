@@ -34,11 +34,9 @@ public class PlayerTeleportService {
      * @param player The player to teleport
      * @param world The target world
      * @param spawnPos The spawn position
-     * @param timerService The timer service for input tracking
      */
-    public void teleportToSpawn(ServerPlayerEntity player, ServerWorld world, BlockPos spawnPos,
-            TimerService timerService) {
-        if (player == null || world == null || spawnPos == null || timerService == null) {
+    public void teleportToSpawn(ServerPlayerEntity player, ServerWorld world, BlockPos spawnPos) {
+        if (player == null || world == null || spawnPos == null) {
             SoulLink.LOGGER.error("Failed to teleport to spawn: null parameter(s)");
             return;
         }
@@ -49,6 +47,13 @@ public class PlayerTeleportService {
         // Teleport to spawn
         player.teleport(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
                 Set.of(), 0, 0, true);
+
+        // Set spawn point in the temporary world for respawning
+        net.minecraft.world.WorldProperties.SpawnPoint spawnPoint =
+                net.minecraft.world.WorldProperties.SpawnPoint.create(world.getRegistryKey(),
+                        spawnPos, 0.0f, 0.0f);
+        ServerPlayerEntity.Respawn respawn = new ServerPlayerEntity.Respawn(spawnPoint, true);
+        player.setSpawnPoint(respawn, false);
 
         // Clear any title
         if (player.networkHandler != null) {
@@ -61,9 +66,6 @@ public class PlayerTeleportService {
         // Play ready sound
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.0f, 1.5f);
-
-        // Set up timer tracking for first player
-        timerService.beginWaitingForInput(player);
     }
 
     /**
@@ -119,11 +121,13 @@ public class PlayerTeleportService {
         player.setExperienceLevel(0);
         player.setExperiencePoints(0);
 
-        // Apply half heart mode if enabled
+        // Apply half heart mode if enabled (only for Runners, not Hunters)
         Settings settings = Settings.getInstance();
         var maxHealthAttr = player.getAttributeInstance(EntityAttributes.MAX_HEALTH);
         if (maxHealthAttr != null) {
-            if (settings.isHalfHeartMode()) {
+            boolean isHunter = net.zenzty.soullink.server.manhunt.ManhuntManager.getInstance()
+                    .isHunter(player);
+            if (settings.isHalfHeartMode() && !isHunter) {
                 maxHealthAttr.setBaseValue(1.0);
                 player.setHealth(1.0f);
                 SoulLink.LOGGER.info("Half Heart Mode enabled for {}",

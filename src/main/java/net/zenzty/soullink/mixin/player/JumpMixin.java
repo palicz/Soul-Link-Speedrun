@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 
 /**
  * Mixin to detect when players jump. When shared jumping is enabled, registers the jump for
@@ -22,6 +23,11 @@ public abstract class JumpMixin {
     private void onJump(CallbackInfo ci) {
         // Only process if this is a ServerPlayerEntity
         if (!((Object) this instanceof ServerPlayerEntity player)) {
+            return;
+        }
+
+        // Hunters are excluded from shared jumping
+        if (ManhuntManager.getInstance().isHunter(player)) {
             return;
         }
 

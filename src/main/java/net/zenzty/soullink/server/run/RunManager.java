@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -23,6 +21,7 @@ import net.minecraft.world.World;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.settings.Settings;
 
 /**
@@ -35,7 +34,6 @@ public class RunManager {
 
     private final MinecraftServer server;
     private final WorldService worldService;
-    private final TimerService timerService;
     private final SpawnFinder spawnFinder;
     private final PlayerTeleportService teleportService;
 
@@ -91,7 +89,6 @@ public class RunManager {
     private RunManager(MinecraftServer server) {
         this.server = server;
         this.worldService = new WorldService(server);
-        this.timerService = new TimerService();
         this.spawnFinder = new SpawnFinder();
         this.teleportService = new PlayerTeleportService(server);
     }
@@ -161,8 +158,7 @@ public class RunManager {
         // Reset End initialization flag
         endInitialized = false;
 
-        // Reset timer
-        timerService.reset();
+
 
         // Reset spawn search and start generating
         spawnFinder.reset();
@@ -204,9 +200,6 @@ public class RunManager {
         if (tempOverworld != null) {
             tempOverworld.setTimeOfDay(tempOverworld.getTimeOfDay() + 1);
         }
-
-        // Handle timer (includes waiting for input)
-        timerService.tick(server, this::isInRun);
     }
 
     /**
@@ -230,9 +223,14 @@ public class RunManager {
 
         gameState = RunState.RUNNING;
 
+        // Create and assign scoreboard teams for Manhunt mode
+        ManhuntManager manhuntManager = ManhuntManager.getInstance();
+        manhuntManager.createTeams(server);
+        manhuntManager.assignPlayersToTeams(server);
+
         // Teleport ALL players to spawn
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService);
+            teleportService.teleportToSpawn(player, overworld, spawnPos);
         }
 
         // Delete old worlds
@@ -278,8 +276,7 @@ public class RunManager {
         if (gameState == RunState.RUNNING && spawnFinder.hasFoundSpawn()) {
             ServerWorld overworld = worldService.getOverworld();
             if (overworld != null) {
-                teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos(),
-                        timerService);
+                teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos());
                 player.sendMessage(formatMessageWithPlayer("", player.getName().getString(),
                         " joined. Stats synced."), false);
             }
@@ -298,10 +295,7 @@ public class RunManager {
 
         SoulLink.LOGGER.info("Game Over triggered!");
 
-        timerService.stop();
         gameState = RunState.GAMEOVER;
-
-        String finalTime = timerService.getFormattedTime();
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (isInRun(player)) {
@@ -313,12 +307,6 @@ public class RunManager {
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
                             SoundEvents.ENTITY_WITHER_DEATH, SoundCategory.PLAYERS, 0.5f, 0.8f);
                 }
-
-                player.networkHandler.sendPacket(new TitleS2CPacket(
-                        Text.literal("GAME OVER").formatted(Formatting.RED, Formatting.BOLD)));
-
-                player.networkHandler.sendPacket(
-                        new SubtitleS2CPacket(Text.literal(finalTime).formatted(Formatting.WHITE)));
             }
         }
 
@@ -336,50 +324,11 @@ public class RunManager {
     }
 
     /**
-     * Handles victory - Ender Dragon killed.
+     * Handles victory - Ender Dragon killed. In Manhunt mode, the game continues.
      */
     public synchronized void triggerVictory() {
-        if (gameState != RunState.RUNNING) {
-            return;
-        }
-
-        SoulLink.LOGGER.info("Victory! Dragon defeated!");
-
-        timerService.stop();
-        gameState = RunState.GAMEOVER;
-
-        String finalTime = timerService.getFormattedTime();
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            ServerWorld world = getPlayerWorld(player);
-            if (world != null) {
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 1.0f, 1.0f);
-            }
-
-            player.networkHandler.sendPacket(new TitleS2CPacket(
-                    Text.literal("VICTORY").formatted(Formatting.GOLD, Formatting.BOLD)));
-
-            player.networkHandler.sendPacket(
-                    new SubtitleS2CPacket(Text.literal(finalTime).formatted(Formatting.WHITE)));
-        }
-
-        Text victoryMessage = Text.empty().append(getPrefix())
-                .append(Text.literal("Dragon defeated in ").formatted(Formatting.GRAY))
-                .append(Text.literal(finalTime).formatted(Formatting.WHITE));
-        server.getPlayerManager().broadcast(victoryMessage, false);
-
-        Text clickableHere = Text.literal("here").setStyle(Style.EMPTY.withColor(Formatting.AQUA)
-                .withUnderline(true).withClickEvent(new ClickEvent.RunCommand("/start"))
-                .withHoverEvent(new HoverEvent.ShowText(
-                        Text.literal("Click to start a new run!").formatted(Formatting.GRAY))));
-
-        Text restartMessage = Text.empty().append(getPrefix())
-                .append(Text.literal("Victory! Click ").formatted(Formatting.GRAY))
-                .append(clickableHere).append(Text.literal(" or use ").formatted(Formatting.GRAY))
-                .append(Text.literal("/start").formatted(Formatting.GOLD))
-                .append(Text.literal(" to challenge again.").formatted(Formatting.GRAY));
-        server.getPlayerManager().broadcast(restartMessage, false);
+        // In Manhunt mode, dragon kill does not end the game
+        SoulLink.LOGGER.info("Dragon defeated - run continues in Manhunt mode");
     }
 
     // ==================== HELPER METHODS ====================
@@ -481,15 +430,5 @@ public class RunManager {
         return server;
     }
 
-    public String getFormattedTime() {
-        return timerService.getFormattedTime();
-    }
 
-    public long getElapsedTimeMillis() {
-        return timerService.getElapsedTimeMillis();
-    }
-
-    public void stopTimer() {
-        timerService.stop();
-    }
 }

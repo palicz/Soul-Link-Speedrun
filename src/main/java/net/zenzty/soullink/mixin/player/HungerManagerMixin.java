@@ -10,6 +10,7 @@ import net.minecraft.entity.player.HungerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 
 /**
@@ -57,6 +58,13 @@ public abstract class HungerManagerMixin {
         ServerWorld serverWorld = player.getEntityWorld();
 
         if (!runManager.isTemporaryWorld(serverWorld.getRegistryKey())) {
+            previousFoodLevel = this.foodLevel;
+            previousSaturation = this.saturationLevel;
+            return;
+        }
+
+        // Hunters are excluded from shared mechanics - use vanilla behavior
+        if (ManhuntManager.getInstance().isHunter(player)) {
             previousFoodLevel = this.foodLevel;
             previousSaturation = this.saturationLevel;
             return;
