@@ -581,6 +581,7 @@ public class SettingsGui {
                 server.getPlayerManager().broadcast(changeMsg, false);
             }
 
+
             // Footer message
             Text footerMsg = Text.empty().append(RunManager.getPrefix()).append(
                     Text.literal("Changes will apply on next run.").formatted(Formatting.YELLOW));
