@@ -18,6 +18,7 @@ public class Settings {
     private boolean sharedPotions = false;
     private boolean sharedJumping = false;
     private boolean swarmIntelligence = true;
+    private boolean staticDischarge = true;
 
     // Pending settings to be applied on next run
     private SettingsSnapshot pendingSnapshot = null;
@@ -87,6 +88,16 @@ public class Settings {
 
     public void setSwarmIntelligenceEnabled(boolean swarmIntelligence) {
         this.swarmIntelligence = swarmIntelligence;
+    }
+
+    // ==================== STATIC DISCHARGE ====================
+
+    public boolean isStaticDischargeEnabled() {
+        return staticDischarge;
+    }
+
+    public void setStaticDischargeEnabled(boolean staticDischarge) {
+        this.staticDischarge = staticDischarge;
     }
 
     // ==================== UTILITY ====================
