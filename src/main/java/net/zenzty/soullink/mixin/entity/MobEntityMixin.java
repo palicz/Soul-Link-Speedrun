@@ -1,27 +1,34 @@
 package net.zenzty.soullink.mixin.entity;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.LocalDifficulty;
+import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.settings.RunDifficulty;
 import net.zenzty.soullink.server.settings.Settings;
+import net.zenzty.soullink.util.SwarmAlertAccessor;
 
 @Mixin(MobEntity.class)
-public class MobEntityMixin {
+public class MobEntityMixin implements SwarmAlertAccessor {
 
     private static final int TIER_IRON = 0;
     private static final int TIER_DIAMOND = 1;
@@ -35,6 +42,22 @@ public class MobEntityMixin {
     private static final int EXTREME_NETHERITE_ENCHANT_LEVEL = 28;
     private static final int EXTREME_DIAMOND_ENCHANT_LEVEL = 22;
     private static final int EXTREME_IRON_ENCHANT_LEVEL = 16;
+
+    @Unique
+    private long soullink$lastSwarmAlertTick = -SoulLinkConstants.SWARM_INTELLIGENCE_COOLDOWN_TICKS;
+
+    @Unique
+    private boolean soullink$skipSwarmAlert = false;
+
+    @Override
+    public void soullink$setSkipSwarmAlert(boolean skip) {
+        this.soullink$skipSwarmAlert = skip;
+    }
+
+    @Override
+    public boolean soullink$shouldSkipSwarmAlert() {
+        return this.soullink$skipSwarmAlert;
+    }
 
     @Inject(method = "initEquipment", at = @At("TAIL"))
     private void soullink$boostHostileEquipment(Random random, LocalDifficulty localDifficulty,
@@ -77,6 +100,58 @@ public class MobEntityMixin {
             if (weaponTier != -1) {
                 equipWeapon(self, serverWorld, weaponTier, random);
             }
+        }
+    }
+
+    @Inject(method = "setTarget", at = @At("TAIL"))
+    private void soullink$alertNearbyZombies(LivingEntity target, CallbackInfo ci) {
+        MobEntity self = (MobEntity) (Object) this;
+        if (!(self instanceof ZombieEntity) || soullink$skipSwarmAlert || target == null
+                || !(target instanceof PlayerEntity)) {
+            return;
+        }
+
+        if (!(self.getEntityWorld() instanceof ServerWorld serverWorld)) {
+            return;
+        }
+
+        RunManager runManager;
+        try {
+            runManager = RunManager.getInstance();
+        } catch (IllegalStateException e) {
+            return;
+        }
+
+        if (runManager == null || !runManager.isRunActive()) {
+            return;
+        }
+
+        if (!runManager.isTemporaryWorld(serverWorld.getRegistryKey())) {
+            return;
+        }
+
+        if (!Settings.getInstance().isSwarmIntelligenceEnabled()) {
+            return;
+        }
+
+        long currentTick = serverWorld.getTime();
+        if (currentTick
+                - soullink$lastSwarmAlertTick < SoulLinkConstants.SWARM_INTELLIGENCE_COOLDOWN_TICKS) {
+            return;
+        }
+        soullink$lastSwarmAlertTick = currentTick;
+
+        Box searchBox = self.getBoundingBox().expand(SoulLinkConstants.SWARM_INTELLIGENCE_RANGE);
+        java.util.List<ZombieEntity> nearbyZombies = serverWorld.getEntitiesByClass(
+                ZombieEntity.class, searchBox, zombie -> zombie.isAlive() && zombie != self);
+        for (ZombieEntity zombie : nearbyZombies) {
+            if (zombie.getTarget() == target) {
+                continue;
+            }
+            SwarmAlertAccessor accessor = (SwarmAlertAccessor) zombie;
+            accessor.soullink$setSkipSwarmAlert(true);
+            zombie.setTarget(target);
+            accessor.soullink$setSkipSwarmAlert(false);
         }
     }
 

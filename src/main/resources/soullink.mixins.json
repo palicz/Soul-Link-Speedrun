@@ -15,7 +15,6 @@
 		"interaction.FireChargeItemMixin",
 		"interaction.FireBlockMixin",
 		"entity.MobEntityMixin",
-		"entity.ZombieEntityMixin",
 		"ui.ScreenHandlerAccessor",
 		"ui.SpectatorInteractionMixin",
 		"server.ServerWorldAccessor",
