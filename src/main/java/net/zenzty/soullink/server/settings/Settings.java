@@ -17,6 +17,7 @@ public class Settings {
     private boolean halfHeartMode = false;
     private boolean sharedPotions = false;
     private boolean sharedJumping = false;
+    private boolean swarmIntelligence = true;
 
     // Pending settings to be applied on next run
     private SettingsSnapshot pendingSnapshot = null;
@@ -76,6 +77,16 @@ public class Settings {
 
     public void setSharedJumping(boolean sharedJumping) {
         this.sharedJumping = sharedJumping;
+    }
+
+    // ==================== SWARM INTELLIGENCE ====================
+
+    public boolean isSwarmIntelligenceEnabled() {
+        return swarmIntelligence;
+    }
+
+    public void setSwarmIntelligenceEnabled(boolean swarmIntelligence) {
+        this.swarmIntelligence = swarmIntelligence;
     }
 
     // ==================== UTILITY ====================
