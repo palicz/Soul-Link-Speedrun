@@ -10,6 +10,8 @@ import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.server.run.RunManager;
 
@@ -21,7 +23,8 @@ public abstract class ServerPlayerEntityMixin {
 
     /**
      * Final safety net - cancel any death during an active run. This prevents the death screen from
-     * ever appearing.
+     * ever appearing. This is the correct place to detect death because armor/enchantment damage
+     * reductions have already been applied.
      */
     @Inject(method = "onDeath", at = @At("HEAD"), cancellable = true)
     private void preventDeathDuringRun(DamageSource damageSource, CallbackInfo ci) {
@@ -33,14 +36,20 @@ public abstract class ServerPlayerEntityMixin {
             return;
         }
 
-        SoulLink.LOGGER.warn(
-                "onDeath called during active run for {} - this shouldn't happen! Cancelling death.",
+        SoulLink.LOGGER.info("Player {} died during active run - triggering game over",
                 player.getName().getString());
 
         // Cancel the death event to prevent death screen
         ci.cancel();
 
-        // Restore health
+        // Broadcast death message to all players (use vanilla death message format)
+        Text deathMessage = damageSource.getDeathMessage(player);
+        Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
+                .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
+                .append(deathMessage.copy().formatted(Formatting.RED));
+        runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage, false);
+
+        // Restore health so player doesn't look dead
         player.setHealth(player.getMaxHealth());
 
         // Clear lingering harmful effects and extinguish fire
