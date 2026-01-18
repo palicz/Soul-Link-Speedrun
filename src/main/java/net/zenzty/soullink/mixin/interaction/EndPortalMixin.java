@@ -1,4 +1,4 @@
-package net.zenzty.soullink.mixin;
+package net.zenzty.soullink.mixin.interaction;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -16,8 +16,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.World;
-import net.zenzty.soullink.RunManager;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.mixin.server.ServerWorldAccessor;
+import net.zenzty.soullink.server.run.RunManager;
 
 /**
  * Mixin for EndPortalBlock to redirect End portal travel to temporary dimensions. Handles both
@@ -68,8 +69,9 @@ public abstract class EndPortalMixin {
             if (destinationWorld != null) {
                 // Initialize the End if first time entering (tracked by RunManager)
                 if (!runManager.isEndInitialized()) {
-                    initializeEnd(destinationWorld);
-                    runManager.setEndInitialized(true);
+                    if (initializeEnd(destinationWorld)) {
+                        runManager.setEndInitialized(true);
+                    }
                 }
 
                 // Spawn above the obsidian platform
@@ -128,12 +130,13 @@ public abstract class EndPortalMixin {
      * temporary worlds don't automatically get one, so we create it manually.
      */
     @Unique
-    private void initializeEnd(ServerWorld endWorld) {
+    private boolean initializeEnd(ServerWorld endWorld) {
         SoulLink.LOGGER.info("Initializing temporary End dimension...");
 
         // Force-load the central chunks to ensure End island and structures are generated
-        for (int x = -8; x <= 8; x++) {
-            for (int z = -8; z <= 8; z++) {
+        // Load a smaller area to reduce server spike
+        for (int x = -2; x <= 2; x++) {
+            for (int z = -2; z <= 2; z++) {
                 endWorld.getChunk(x, z);
             }
         }
@@ -144,7 +147,7 @@ public abstract class EndPortalMixin {
 
         if (existingFight != null) {
             SoulLink.LOGGER.info("EnderDragonFight already exists");
-            return;
+            return true;
         }
 
         // Fantasy temporary worlds don't get EnderDragonFight automatically
@@ -165,17 +168,21 @@ public abstract class EndPortalMixin {
             EnderDragonFight verifyFight = endWorld.getEnderDragonFight();
             if (verifyFight != null) {
                 SoulLink.LOGGER.info("Verified: EnderDragonFight is now active");
+                SoulLink.LOGGER.info("Temporary End initialization complete");
+                return true;
             }
         } catch (Exception e) {
-            SoulLink.LOGGER.error("Failed to create EnderDragonFight: {}", e.getMessage());
+            SoulLink.LOGGER.error("Failed to create EnderDragonFight", e);
         }
 
-        SoulLink.LOGGER.info("Temporary End initialization complete");
+        SoulLink.LOGGER.warn("Temporary End initialization failed");
+        return false;
     }
 
     /**
      * Finds a safe spawn location in the overworld.
      */
+    @Unique
     private BlockPos findSafeSpawn(ServerWorld world, int centerX, int centerZ) {
         // Search in a spiral pattern for safe ground
         for (int radius = 0; radius <= 128; radius += 16) {
@@ -204,8 +211,10 @@ public abstract class EndPortalMixin {
             }
         }
 
-        // Fallback to origin at sea level
-        return new BlockPos(centerX, 64, centerZ);
+        // Fallback to origin at top surface
+        int topY = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+                centerX, centerZ);
+        return new BlockPos(centerX, Math.max(topY, world.getBottomY() + 64), centerZ);
     }
 }
 
