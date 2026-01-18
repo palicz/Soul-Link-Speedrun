@@ -331,30 +331,10 @@ public class EventRegistry {
                 return true;
             }
 
-            float currentHealth = player.getHealth();
-
-            boolean hasTotem = player.getOffHandStack()
-                    .isOf(net.minecraft.item.Items.TOTEM_OF_UNDYING)
-                    || player.getMainHandStack().isOf(net.minecraft.item.Items.TOTEM_OF_UNDYING);
-
-            if (currentHealth - amount <= 0 && !hasTotem) {
-                // Hunters get custom death with respawn countdown (not game over)
-                if (ManhuntManager.getInstance().isHunter(player)) {
-                    SoulLink.LOGGER.info("Lethal damage to Hunter {} - starting respawn countdown",
-                            player.getName().getString());
-                    handleHunterDeath(player, source, runManager);
-                    return false; // Block the damage, we handle death ourselves
-                }
-
-                SoulLink.LOGGER.info(
-                        "Lethal damage detected for Runner {} ({} damage, {} health) - triggering game over!",
-                        player.getName().getString(), amount, currentHealth);
-
-                handlePlayerDeath(player, source, runManager);
-
-                return false;
-            }
-
+            // Allow all damage through - the actual death check happens in ServerPlayerEntityMixin
+            // when health truly hits 0 (after armor/enchantment reductions are applied).
+            // Previously we checked raw damage here, but that caused false positives since
+            // 'amount' is before armor reduction (e.g., iron golem 15 raw → 7 actual with armor).
             return true;
         });
 
@@ -380,6 +360,9 @@ public class EventRegistry {
                         return;
                     }
 
+                    // If player health hit 0 or below (shouldn't happen - mixin should catch this)
+                    // This is a backup check - ServerPlayerEntityMixin.preventDeathDuringRun should
+                    // have already cancelled onDeath() and triggered game over
                     if (player.getHealth() <= 0) {
                         // Hunters use vanilla death mechanics - don't trigger game over
                         if (ManhuntManager.getInstance().isHunter(player)) {
