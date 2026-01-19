@@ -164,15 +164,23 @@ public class SpeedrunnerSelectorGui {
             int runnerCount = manager.getRunners().size();
             int hunterCount = manager.getHunters().size();
 
-            boolean canStart = runnerCount > 0;
+            boolean canStart = runnerCount > 0 && hunterCount > 0;
 
             if (canStart) {
                 item.set(DataComponentTypes.CUSTOM_NAME,
                         createItemName("✓ Start Run", Formatting.GREEN, Formatting.BOLD));
             } else {
                 item = new ItemStack(Items.BARRIER);
-                item.set(DataComponentTypes.CUSTOM_NAME, createItemName("✗ Need at least 1 Runner",
-                        Formatting.RED, Formatting.BOLD));
+                if (runnerCount == 0 && hunterCount == 0) {
+                    item.set(DataComponentTypes.CUSTOM_NAME, createItemName(
+                            "✗ Need Runners & Hunters", Formatting.RED, Formatting.BOLD));
+                } else if (runnerCount == 0) {
+                    item.set(DataComponentTypes.CUSTOM_NAME, createItemName(
+                            "✗ Need at least 1 Runner", Formatting.RED, Formatting.BOLD));
+                } else {
+                    item.set(DataComponentTypes.CUSTOM_NAME, createItemName(
+                            "✗ Need at least 1 Hunter", Formatting.RED, Formatting.BOLD));
+                }
             }
 
             LoreComponent lore = new LoreComponent(List.of(
@@ -188,7 +196,7 @@ public class SpeedrunnerSelectorGui {
                     Text.empty(),
                     canStart ? Text.literal("Click to start the run!").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.YELLOW))
-                            : Text.literal("Select at least one runner").setStyle(
+                            : Text.literal("Need at least 1 Runner and 1 Hunter").setStyle(
                                     Style.EMPTY.withItalic(false).withFormatting(Formatting.RED))));
             item.set(DataComponentTypes.LORE, lore);
 
@@ -316,6 +324,13 @@ public class SpeedrunnerSelectorGui {
 
             if (!manager.hasRunners()) {
                 player.sendMessage(RunManager.formatMessage("Need at least one Runner to start!"),
+                        false);
+                playErrorSound();
+                return;
+            }
+
+            if (!manager.hasHunters()) {
+                player.sendMessage(RunManager.formatMessage("Need at least one Hunter to start!"),
                         false);
                 playErrorSound();
                 return;

@@ -262,7 +262,8 @@ public class RunManager {
     }
 
     /**
-     * Teleports a late-joining player to the current run.
+     * Handles a late-joining player during an active run. Late joiners become spectators - they
+     * cannot participate until the next run.
      */
     public void teleportPlayerToRun(ServerPlayerEntity player) {
         if (gameState == RunState.GENERATING_WORLD) {
@@ -276,9 +277,21 @@ public class RunManager {
         if (gameState == RunState.RUNNING && spawnFinder.hasFoundSpawn()) {
             ServerWorld overworld = worldService.getOverworld();
             if (overworld != null) {
-                teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos());
-                player.sendMessage(formatMessageWithPlayer("", player.getName().getString(),
-                        " joined. Stats synced."), false);
+                // Late joiners become spectators - they cannot participate mid-run
+                player.changeGameMode(GameMode.SPECTATOR);
+                player.getInventory().clear();
+                player.clearStatusEffects();
+
+                // Teleport to spawn area so they can spectate
+                BlockPos spawnPos = spawnFinder.getSpawnPos();
+                player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY() + 10,
+                        spawnPos.getZ() + 0.5, java.util.Set.of(), 0, 0, true);
+
+                player.sendMessage(
+                        formatMessage("A run is in progress. You are spectating until it ends."),
+                        false);
+                SoulLink.LOGGER.info("Late joiner {} set to spectator mode",
+                        player.getName().getString());
             }
         }
     }
@@ -323,13 +336,6 @@ public class RunManager {
         server.getPlayerManager().broadcast(restartMessage, false);
     }
 
-    /**
-     * Handles victory - Ender Dragon killed. In Manhunt mode, the game continues.
-     */
-    public synchronized void triggerVictory() {
-        // In Manhunt mode, dragon kill does not end the game
-        SoulLink.LOGGER.info("Dragon defeated - run continues in Manhunt mode");
-    }
 
     // ==================== HELPER METHODS ====================
 

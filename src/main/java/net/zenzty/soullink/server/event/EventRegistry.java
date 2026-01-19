@@ -274,7 +274,7 @@ public class EventRegistry {
      * Registers entity events for death handling and dragon victory.
      */
     private static void registerEntityEvents() {
-        // Handle entity death - check for dragon
+        // Handle entity death - check for dragon (for logging only, no victory trigger)
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof EnderDragonEntity dragon) {
                 RunManager runManager;
@@ -290,9 +290,8 @@ public class EventRegistry {
 
                 if (dragon.getEntityWorld() instanceof ServerWorld dragonWorld
                         && runManager.isTemporaryWorld(dragonWorld.getRegistryKey())) {
-                    SoulLink.LOGGER
-                            .info("Ender Dragon killed in temporary End - triggering victory!");
-                    runManager.triggerVictory();
+                    SoulLink.LOGGER.info(
+                            "Ender Dragon killed in temporary End - game continues in Manhunt mode");
                 }
             }
         });
@@ -472,22 +471,46 @@ public class EventRegistry {
             // Set to survival mode
             player.changeGameMode(GameMode.SURVIVAL);
 
-            // Get the spawn point in temp world
+            // Check if player has a bed/respawn anchor spawn point in the temp world
             ServerWorld tempOverworld = runManager.getWorldService().getOverworld();
-            net.minecraft.util.math.BlockPos spawnPos = runManager.getSpawnPos();
+            net.minecraft.util.math.BlockPos fallbackSpawnPos = runManager.getSpawnPos();
 
-            if (tempOverworld != null && spawnPos != null) {
-                // Set spawn point in the temporary world for respawning (User Request)
+            ServerWorld targetWorld = tempOverworld;
+            net.minecraft.util.math.BlockPos targetPos = fallbackSpawnPos;
+
+            // Check for player's custom spawn point (bed/respawn anchor)
+            ServerPlayerEntity.Respawn playerRespawn = player.getRespawn();
+            if (playerRespawn != null) {
+                net.minecraft.world.WorldProperties.SpawnPoint spawnData =
+                        playerRespawn.respawnData();
+                net.minecraft.registry.RegistryKey<net.minecraft.world.World> spawnDimension =
+                        spawnData.getDimension();
+
+                // Check if spawn point is in a temp world dimension
+                if (runManager.isTemporaryWorld(spawnDimension)) {
+                    ServerWorld spawnWorld = server.getWorld(spawnDimension);
+                    if (spawnWorld != null) {
+                        // Use player's bed/respawn anchor spawn point
+                        targetWorld = spawnWorld;
+                        targetPos = spawnData.getPos();
+                        SoulLink.LOGGER.info("Hunter {} respawning at custom spawn point: {}",
+                                player.getName().getString(), targetPos);
+                    }
+                }
+            }
+
+            if (targetWorld != null && targetPos != null) {
+                // Set spawn point for respawning
                 net.minecraft.world.WorldProperties.SpawnPoint spawnPoint =
                         net.minecraft.world.WorldProperties.SpawnPoint
-                                .create(tempOverworld.getRegistryKey(), spawnPos, 0.0f, 0.0f);
+                                .create(targetWorld.getRegistryKey(), targetPos, 0.0f, 0.0f);
                 ServerPlayerEntity.Respawn respawn =
                         new ServerPlayerEntity.Respawn(spawnPoint, true);
                 player.setSpawnPoint(respawn, false);
 
-                // Teleport to the specific run spawn point
-                player.teleport(tempOverworld, spawnPos.getX() + 0.5, spawnPos.getY(),
-                        spawnPos.getZ() + 0.5, java.util.Set.of(), 0.0f, 0.0f, true);
+                // Teleport to the target spawn point
+                player.teleport(targetWorld, targetPos.getX() + 0.5, targetPos.getY(),
+                        targetPos.getZ() + 0.5, java.util.Set.of(), 0.0f, 0.0f, true);
             }
 
             // Reset health and hunger

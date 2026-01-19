@@ -126,6 +126,13 @@ public class ManhuntManager {
     }
 
     /**
+     * Checks if any hunters have been assigned.
+     */
+    public boolean hasHunters() {
+        return !hunters.isEmpty();
+    }
+
+    /**
      * Creates scoreboard teams for Runners and Hunters. Teams provide colored name tags and
      * prefixes.
      */

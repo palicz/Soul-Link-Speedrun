@@ -65,6 +65,13 @@ public class CommandRegistry {
                         return 0;
                 }
 
+                // Check if a run is already active
+                if (runManager.isRunActive()) {
+                        context.getSource().sendError(RunManager.formatMessage(
+                                        "A run is already in progress! Use /reset first."));
+                        return 0;
+                }
+
                 // Open role selector GUI
                 ServerPlayerEntity player = context.getSource().getPlayer();
                 if (player != null) {

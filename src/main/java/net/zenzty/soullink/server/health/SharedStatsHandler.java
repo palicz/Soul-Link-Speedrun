@@ -243,12 +243,15 @@ public class SharedStatsHandler {
         if (server == null)
             return;
 
-        // Count players in the run
+        // Count RUNNERS only (Hunters are excluded from shared mechanics)
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
-                playerCount++;
+                // Only count Runners, not Hunters
+                if (!ManhuntManager.getInstance().isHunter(player)) {
+                    playerCount++;
+                }
             }
         }
 
@@ -272,10 +275,14 @@ public class SharedStatsHandler {
             float oldHealth = sharedHealth;
             sharedHealth = MathHelper.clamp(sharedHealth - damageToApply, 0.0f, getMaxHealth());
 
-            // Sync to all players
+            // Sync to all RUNNERS only (Hunters are excluded from shared mechanics)
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 ServerWorld otherWorld = getPlayerWorld(player);
                 if (otherWorld == null || !runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
+                    continue;
+
+                // Skip hunters - they use vanilla mechanics
+                if (ManhuntManager.getInstance().isHunter(player))
                     continue;
 
                 player.setHealth(sharedHealth);

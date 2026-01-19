@@ -47,6 +47,11 @@ public abstract class ServerPlayerEntityMixin {
                         // Cancel vanilla death
                         ci.cancel();
 
+                        // CRITICAL: Restore health immediately to prevent death screen
+                        // The death screen is triggered client-side when health is 0,
+                        // even if onDeath is cancelled.
+                        player.setHealth(player.getMaxHealth());
+
                         // Trigger custom death handler
                         net.zenzty.soullink.server.event.EventRegistry.handleHunterDeath(player,
                                         damageSource, runManager);
