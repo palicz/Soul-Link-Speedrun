@@ -10,7 +10,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.screen.GenericContainerScreenHandler;
+import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
 import net.minecraft.screen.slot.Slot;
@@ -257,22 +257,40 @@ public class SpeedrunnerSelectorGui {
     /**
      * Screen handler for the role selector GUI.
      */
-    public static class SelectorScreenHandler extends GenericContainerScreenHandler {
+    public static class SelectorScreenHandler extends ScreenHandler {
 
         private final SelectorInventory selectorInventory;
         private final ServerPlayerEntity player;
 
         public SelectorScreenHandler(int syncId, SelectorInventory inventory,
                 ServerPlayerEntity player) {
-            super(ScreenHandlerType.GENERIC_9X6, syncId, player.getInventory(), inventory, 6);
+            super(ScreenHandlerType.GENERIC_9X6, syncId);
             this.selectorInventory = inventory;
             this.player = player;
+            checkSize(inventory, INVENTORY_SIZE);
+            inventory.onOpen(player);
 
-            // Replace inventory slots with virtual slots
+            // Add Virtual Slots (Container)
             for (int i = 0; i < INVENTORY_SIZE; i++) {
-                Slot oldSlot = this.slots.get(i);
-                Slot newSlot = new VirtualSlot(inventory, i, oldSlot.x, oldSlot.y);
-                this.slots.set(i, newSlot);
+                int x = 8 + (i % 9) * 18;
+                int y = 18 + (i / 9) * 18;
+                this.addSlot(new VirtualSlot(inventory, i, x, y));
+            }
+
+            // Add Player Inventory Slots
+            // Generic 9x6 offset: 36 (rows-4)*18
+            int headerOffset = 36;
+            for (int row = 0; row < 3; ++row) {
+                for (int col = 0; col < 9; ++col) {
+                    this.addSlot(new Slot(player.getInventory(), col + row * 9 + 9, 8 + col * 18,
+                            103 + row * 18 + headerOffset));
+                }
+            }
+
+            // Add Hotbar Slots
+            for (int col = 0; col < 9; ++col) {
+                this.addSlot(
+                        new Slot(player.getInventory(), col, 8 + col * 18, 161 + headerOffset));
             }
         }
 
