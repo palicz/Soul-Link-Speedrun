@@ -9,11 +9,13 @@ import java.util.UUID;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LodestoneTrackerComponent;
+import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
@@ -153,11 +155,20 @@ public class CompassTrackingHandler {
         ServerPlayerEntity newTarget = runners.get(nextIndex);
         hunterTargets.put(hunterId, newTarget.getUuid());
 
-        // Show feedback to hunter
-        hunter.sendMessage(Text.literal("Now tracking: ").formatted(Formatting.GRAY)
-                .append(Text.literal(newTarget.getName().getString()).formatted(Formatting.RED,
-                        Formatting.BOLD)),
-                true);
+        // Check if target is in a different dimension
+        RegistryKey<World> hunterDimension = hunter.getEntityWorld().getRegistryKey();
+        RegistryKey<World> targetDimension = newTarget.getEntityWorld().getRegistryKey();
+
+        // Show feedback to hunter based on dimension
+        if (hunterDimension.equals(targetDimension)) {
+            hunter.sendMessage(Text.literal("Now tracking: ").formatted(Formatting.GRAY)
+                    .append(Text.literal(newTarget.getName().getString()).formatted(Formatting.RED,
+                            Formatting.BOLD)),
+                    true);
+        } else {
+            hunter.sendMessage(Text.literal("Target in another dimension - showing last location")
+                    .formatted(Formatting.YELLOW), true);
+        }
 
         // Immediately update the compass
         updateCompassForHunter(hunter, server);
@@ -178,7 +189,6 @@ public class CompassTrackingHandler {
         // Try to get the runner's current position
         ServerPlayerEntity runner = server.getPlayerManager().getPlayer(targetId);
         GlobalPos targetPos = null;
-        boolean isDifferentDimension = false;
 
         if (runner != null) {
             RegistryKey<World> hunterDimension = hunter.getEntityWorld().getRegistryKey();
@@ -189,7 +199,6 @@ public class CompassTrackingHandler {
                 targetPos = GlobalPos.create(runnerDimension, runner.getBlockPos());
             } else {
                 // Different dimension - use last known position in hunter's dimension
-                isDifferentDimension = true;
                 Map<RegistryKey<World>, GlobalPos> runnerPositions =
                         lastKnownPositions.get(targetId);
                 if (runnerPositions != null) {
@@ -212,12 +221,6 @@ public class CompassTrackingHandler {
                 }
             }
         }
-
-        // Show dimension warning in action bar if tracking cross-dimension
-        if (isDifferentDimension && runner != null) {
-            hunter.sendMessage(Text.literal("Target in another dimension - showing last location")
-                    .formatted(Formatting.YELLOW), true);
-        }
     }
 
     /**
@@ -225,8 +228,11 @@ public class CompassTrackingHandler {
      */
     public static void giveTrackingCompass(ServerPlayerEntity hunter) {
         ItemStack compass = new ItemStack(Items.COMPASS);
-        compass.set(DataComponentTypes.CUSTOM_NAME,
-                Text.literal("Runner Tracker").formatted(Formatting.RED, Formatting.BOLD));
+        compass.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Runner Tracker")
+                .setStyle(Style.EMPTY.withFormatting(Formatting.RED).withItalic(false)));
+        compass.set(DataComponentTypes.LORE,
+                new LoreComponent(List.of(Text.literal("Right Click to swap target")
+                        .setStyle(Style.EMPTY.withFormatting(Formatting.GRAY).withItalic(false)))));
         hunter.getInventory().insertStack(compass);
         SoulLink.LOGGER.info("Gave tracking compass to hunter {}", hunter.getName().getString());
     }

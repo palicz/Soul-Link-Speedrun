@@ -447,7 +447,7 @@ public class EventRegistry {
         // Set to spectator mode
         player.changeGameMode(GameMode.SPECTATOR);
 
-        // Drop all inventory items at death location before clearing
+        // Drop all inventory items at death location before clearing (except compass)
         ServerWorld world = player.getEntityWorld();
         double deathX = player.getX();
         double deathY = player.getY();
@@ -456,6 +456,10 @@ public class EventRegistry {
         for (int i = 0; i < player.getInventory().size(); i++) {
             net.minecraft.item.ItemStack stack = player.getInventory().getStack(i);
             if (!stack.isEmpty()) {
+                // Skip dropping compasses - hunters get a new one on respawn
+                if (stack.isOf(net.minecraft.item.Items.COMPASS)) {
+                    continue;
+                }
                 net.minecraft.entity.ItemEntity itemEntity = new net.minecraft.entity.ItemEntity(
                         world, deathX, deathY, deathZ, stack.copy());
                 // Add random velocity like vanilla item drops
@@ -546,6 +550,9 @@ public class EventRegistry {
             player.getHungerManager().setFoodLevel(20);
             player.getHungerManager().setSaturationLevel(5.0f);
 
+            // Give hunter a new tracking compass
+            CompassTrackingHandler.giveTrackingCompass(player);
+
             SoulLink.LOGGER.info("Hunter {} respawned after death", player.getName().getString());
         });
     }
@@ -566,17 +573,26 @@ public class EventRegistry {
      * Process any delayed tasks that are ready to run.
      */
     private static void processDelayedTasks(MinecraftServer server) {
+        // Collect tasks to run first to avoid ConcurrentModificationException
+        // (tasks may schedule more tasks when they run)
+        List<Runnable> tasksToRun = new ArrayList<>();
+
         Iterator<DelayedTask> iterator = delayedTasks.iterator();
         while (iterator.hasNext()) {
             DelayedTask task = iterator.next();
             task.remainingTicks--;
             if (task.remainingTicks <= 0) {
-                try {
-                    task.task.run();
-                } catch (Exception e) {
-                    SoulLink.LOGGER.error("Error running delayed task", e);
-                }
+                tasksToRun.add(task.task);
                 iterator.remove();
+            }
+        }
+
+        // Run tasks after iteration is complete
+        for (Runnable task : tasksToRun) {
+            try {
+                task.run();
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Error running delayed task", e);
             }
         }
     }

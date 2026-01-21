@@ -261,14 +261,18 @@ public class RunManager {
             }
         }
 
-        // Apply head start effects
-        applyHeadStartEffects(manhuntManager);
-
         // Delete old worlds
         worldService.deleteOldWorlds();
 
         // Broadcast ready message
         server.getPlayerManager().broadcast(formatMessage("World ready! Good luck!"), false);
+
+        // Apply head start effects after a brief delay to ensure players have loaded
+        EventRegistry.scheduleDelayed(20, () -> {
+            if (gameState == RunState.RUNNING) {
+                applyHeadStartEffects(manhuntManager);
+            }
+        });
 
         SoulLink.LOGGER.info("World generation complete, run started");
     }
