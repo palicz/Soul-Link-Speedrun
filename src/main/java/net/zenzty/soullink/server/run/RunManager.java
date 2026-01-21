@@ -4,6 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -20,6 +25,7 @@ import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
+import net.zenzty.soullink.server.event.EventRegistry;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
 import net.zenzty.soullink.server.manhunt.ManhuntManager;
@@ -255,6 +261,9 @@ public class RunManager {
             }
         }
 
+        // Apply head start effects
+        applyHeadStartEffects(manhuntManager);
+
         // Delete old worlds
         worldService.deleteOldWorlds();
 
@@ -262,6 +271,80 @@ public class RunManager {
         server.getPlayerManager().broadcast(formatMessage("World ready! Good luck!"), false);
 
         SoulLink.LOGGER.info("World generation complete, run started");
+    }
+
+    /**
+     * Head start duration in seconds.
+     */
+    private static final int HEAD_START_SECONDS = 30;
+
+    /**
+     * Applies head start effects: Hunters get blindness and slowness with countdown, Runners get
+     * speed. After the head start period, runners are notified that hunters are released.
+     */
+    private void applyHeadStartEffects(ManhuntManager manhuntManager) {
+        int durationTicks = HEAD_START_SECONDS * 20;
+
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (manhuntManager.isHunter(player)) {
+                // Hunters get blindness and slowness
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS,
+                        durationTicks, 0, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS,
+                        durationTicks, 255, false, false, true));
+            } else if (manhuntManager.isSpeedrunner(player)) {
+                // Runners get speed
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, durationTicks,
+                        0, false, false, true));
+            }
+        }
+
+        // Schedule countdown titles for hunters (every second)
+        for (int i = HEAD_START_SECONDS; i >= 1; i--) {
+            final int secondsRemaining = i;
+            int delayTicks = (HEAD_START_SECONDS - i) * 20;
+
+            EventRegistry.scheduleDelayed(delayTicks, () -> {
+                if (gameState != RunState.RUNNING)
+                    return;
+
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    if (manhuntManager.isHunter(player)) {
+                        // Set fast fade times for countdown
+                        player.networkHandler.sendPacket(new TitleFadeS2CPacket(0, 25, 0));
+
+                        // Show countdown number
+                        Formatting color = secondsRemaining <= 5 ? Formatting.RED : Formatting.GOLD;
+                        player.networkHandler.sendPacket(
+                                new TitleS2CPacket(Text.literal(String.valueOf(secondsRemaining))
+                                        .formatted(color, Formatting.BOLD)));
+                        player.networkHandler.sendPacket(new SubtitleS2CPacket(Text
+                                .literal("Head start for runners...").formatted(Formatting.GRAY)));
+                    }
+                }
+            });
+        }
+
+        // After head start ends, notify runners
+        EventRegistry.scheduleDelayed(HEAD_START_SECONDS * 20, () -> {
+            if (gameState != RunState.RUNNING)
+                return;
+
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                if (manhuntManager.isSpeedrunner(player)) {
+                    player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
+                    player.networkHandler
+                            .sendPacket(new TitleS2CPacket(Text.literal("HUNTERS RELEASED!")
+                                    .formatted(Formatting.RED, Formatting.BOLD)));
+                } else if (manhuntManager.isHunter(player)) {
+                    player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
+                    player.networkHandler.sendPacket(new TitleS2CPacket(
+                            Text.literal("GO!").formatted(Formatting.GREEN, Formatting.BOLD)));
+                }
+            }
+        });
+
+        SoulLink.LOGGER.info("Applied head start effects - {} seconds", HEAD_START_SECONDS);
     }
 
     /**
