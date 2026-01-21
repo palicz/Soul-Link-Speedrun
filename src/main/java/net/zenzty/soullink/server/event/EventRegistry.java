@@ -23,6 +23,7 @@ import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
 import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.run.RunState;
@@ -53,6 +54,9 @@ public class EventRegistry {
         registerConnectionEvents();
         registerTickEvents();
         registerEntityEvents();
+
+        // Register compass tracking for hunters
+        CompassTrackingHandler.register();
     }
 
     /**
@@ -267,6 +271,11 @@ public class EventRegistry {
 
             // Periodic stats sync
             SharedStatsHandler.tickSync(server);
+
+            // Update hunter tracking compasses in Manhunt mode
+            if (runManager != null && runManager.isRunActive()) {
+                CompassTrackingHandler.tick(server);
+            }
         });
     }
 

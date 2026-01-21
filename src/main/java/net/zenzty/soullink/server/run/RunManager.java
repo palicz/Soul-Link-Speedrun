@@ -21,6 +21,7 @@ import net.minecraft.world.World;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
 import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -223,6 +224,19 @@ public class RunManager {
 
         gameState = RunState.RUNNING;
 
+        // Disable vanilla locator bar in all worlds (we use our own compass tracking)
+        for (ServerWorld world : server.getWorlds()) {
+            try {
+                server.getCommandManager().getDispatcher().execute(
+                        "execute in " + world.getRegistryKey().getValue()
+                                + " run gamerule locator_bar false",
+                        server.getCommandSource().withSilent());
+            } catch (Exception e) {
+                SoulLink.LOGGER.warn("Could not disable locator_bar in {}: {}",
+                        world.getRegistryKey().getValue(), e.getMessage());
+            }
+        }
+
         // Create and assign scoreboard teams for Manhunt mode
         ManhuntManager manhuntManager = ManhuntManager.getInstance();
         manhuntManager.createTeams(server);
@@ -231,6 +245,14 @@ public class RunManager {
         // Teleport ALL players to spawn
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             teleportService.teleportToSpawn(player, overworld, spawnPos);
+        }
+
+        // Give hunters tracking compasses
+        CompassTrackingHandler.reset();
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (manhuntManager.isHunter(player)) {
+                CompassTrackingHandler.giveTrackingCompass(player);
+            }
         }
 
         // Delete old worlds
