@@ -144,6 +144,9 @@ public class RunManager {
 
         SoulLink.LOGGER.info("Starting new run...");
 
+        // Clear any pending delayed tasks from previous run
+        EventRegistry.clearDelayedTasks();
+
         // Clear any lingering Ender Dragon bossbar from previous run
         clearEnderDragonBossbar();
 
@@ -322,8 +325,8 @@ public class RunManager {
                         player.networkHandler.sendPacket(
                                 new TitleS2CPacket(Text.literal(String.valueOf(secondsRemaining))
                                         .formatted(color, Formatting.BOLD)));
-                        player.networkHandler.sendPacket(new SubtitleS2CPacket(Text
-                                .literal("Head start for runners...").formatted(Formatting.GRAY)));
+                        player.networkHandler.sendPacket(new SubtitleS2CPacket(
+                                Text.literal("Catch the Runners!").formatted(Formatting.GRAY)));
                     }
                 }
             });

@@ -564,6 +564,18 @@ public class EventRegistry {
         delayedTasks.add(new DelayedTask(delayTicks, task));
     }
 
+    /**
+     * Clears all pending delayed tasks. Called when starting a new run to prevent tasks from
+     * previous runs from executing.
+     */
+    public static void clearDelayedTasks() {
+        int count = delayedTasks.size();
+        delayedTasks.clear();
+        if (count > 0) {
+            SoulLink.LOGGER.debug("Cleared {} delayed tasks", count);
+        }
+    }
+
     // Kept for backward compatibility if needed, but redirects to the new one
     public static void scheduleDelayed(MinecraftServer server, int delayTicks, Runnable task) {
         scheduleDelayed(delayTicks, task);
