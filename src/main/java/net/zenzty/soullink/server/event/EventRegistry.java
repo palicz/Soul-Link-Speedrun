@@ -438,6 +438,25 @@ public class EventRegistry {
         // Set to spectator mode
         player.changeGameMode(GameMode.SPECTATOR);
 
+        // Drop all inventory items at death location before clearing
+        ServerWorld world = player.getEntityWorld();
+        double deathX = player.getX();
+        double deathY = player.getY();
+        double deathZ = player.getZ();
+
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            net.minecraft.item.ItemStack stack = player.getInventory().getStack(i);
+            if (!stack.isEmpty()) {
+                net.minecraft.entity.ItemEntity itemEntity = new net.minecraft.entity.ItemEntity(
+                        world, deathX, deathY, deathZ, stack.copy());
+                // Add random velocity like vanilla item drops
+                itemEntity.setVelocity(world.random.nextGaussian() * 0.05,
+                        world.random.nextGaussian() * 0.05 + 0.2,
+                        world.random.nextGaussian() * 0.05);
+                world.spawnEntity(itemEntity);
+            }
+        }
+
         // Clear inventory
         player.getInventory().clear();
         player.getEnderChestInventory().clear();
