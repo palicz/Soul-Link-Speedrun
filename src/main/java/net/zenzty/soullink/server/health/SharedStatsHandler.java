@@ -14,7 +14,8 @@ import net.zenzty.soullink.server.settings.Settings;
 // Note: Settings import is used for half heart mode max health calculations
 
 /**
- * Handles shared health, hunger, and saturation between all players. Implements the "Soul Link"
+ * Handles shared health, hunger, and saturation between all players. Implements
+ * the "Soul Link"
  * mechanic where all players share the same vital stats.
  */
 public class SharedStatsHandler {
@@ -31,10 +32,12 @@ public class SharedStatsHandler {
     // Accumulator for fractional natural regen (since we divide by player count)
     private static volatile float regenAccumulator = 0.0f;
 
-    // Accumulator for fractional regeneration effect healing (since we divide by player count)
+    // Accumulator for fractional regeneration effect healing (since we divide by
+    // player count)
     private static volatile float regenerationHealAccumulator = 0.0f;
 
-    // Accumulators for fractional hunger/saturation drain (since we divide by player count)
+    // Accumulators for fractional hunger/saturation drain (since we divide by
+    // player count)
     private static volatile float hungerDrainAccumulator = 0.0f;
     private static volatile float saturationDrainAccumulator = 0.0f;
 
@@ -74,7 +77,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Syncs a player's stats to the current shared values. Used for late joiners and reconnecting
+     * Syncs a player's stats to the current shared values. Used for late joiners
+     * and reconnecting
      * players.
      */
     public static void syncPlayerToSharedStats(ServerPlayerEntity player) {
@@ -102,7 +106,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Gets the ServerWorld for a player. In Yarn 1.21.11, ServerPlayerEntity.getEntityWorld()
+     * Gets the ServerWorld for a player. In Yarn 1.21.11,
+     * ServerPlayerEntity.getEntityWorld()
      * returns ServerWorld directly.
      */
     private static ServerWorld getPlayerWorld(ServerPlayerEntity player) {
@@ -110,12 +115,14 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player's health changes after taking damage. Updates the master health and
+     * Called when a player's health changes after taking damage. Updates the master
+     * health and
      * syncs to all other players with visual feedback.
      * 
      * @param damagedPlayer The player who took damage
-     * @param newHealth The player's health AFTER damage was applied (armor already calculated)
-     * @param damageSource The source of the damage
+     * @param newHealth     The player's health AFTER damage was applied (armor
+     *                      already calculated)
+     * @param damageSource  The source of the damage
      */
     public static void onPlayerHealthChanged(ServerPlayerEntity damagedPlayer, float newHealth,
             DamageSource damageSource) {
@@ -170,25 +177,6 @@ public class SharedStatsHandler {
                 float syncedDamageAmount = oldHealth - sharedHealth;
                 List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
 
-                // Broadcast damage notification to all players
-                // Convert from half-hearts to full hearts for display (Minecraft stores health as
-                // 0-20, where 1 heart = 2)
-                // Round to nearest 0.5 hearts and ensure minimum of 0.5 for display
-                float damageInHearts = syncedDamageAmount / 2.0f;
-                float roundedDamage = Math.max(0.5f, Math.round(damageInHearts * 2.0f) / 2.0f);
-                String damageText = String.format(java.util.Locale.US, "%.1f", roundedDamage);
-                net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
-                        .append(RunManager.getPrefix())
-                        .append(net.minecraft.text.Text.literal(damagedPlayer.getName().getString())
-                                .formatted(net.minecraft.util.Formatting.WHITE))
-                        .append(net.minecraft.text.Text.literal(" has taken ")
-                                .formatted(net.minecraft.util.Formatting.GRAY))
-                        .append(net.minecraft.text.Text.literal(damageText + " ❤")
-                                .formatted(net.minecraft.util.Formatting.RED))
-                        .append(net.minecraft.text.Text.literal(" damage.")
-                                .formatted(net.minecraft.util.Formatting.GRAY));
-                server.getPlayerManager().broadcast(damageNotification, false);
-
                 for (ServerPlayerEntity player : players) {
                     if (player == damagedPlayer || player.isSpectator() || player.isCreative())
                         continue;
@@ -234,7 +222,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Handles periodic damage (Poison/Wither) by normalizing it by player count and using an
+     * Handles periodic damage (Poison/Wither) by normalizing it by player count and
+     * using an
      * accumulator.
      */
     private static void handlePeriodicDamage(ServerPlayerEntity damagedPlayer, float damageAmount) {
@@ -301,10 +290,12 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player heals (potions, etc.) Updates the master health and syncs to all
+     * Called when a player heals (potions, etc.) Updates the master health and
+     * syncs to all
      * players.
      * 
-     * Note: Regeneration effect healing is handled separately by onRegenerationHeal() to normalize
+     * Note: Regeneration effect healing is handled separately by
+     * onRegenerationHeal() to normalize
      * by player count.
      */
     public static void onPlayerHealed(ServerPlayerEntity healedPlayer, float newHealth) {
@@ -367,10 +358,12 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player heals from a regeneration effect. The healing amount is divided by the
+     * Called when a player heals from a regeneration effect. The healing amount is
+     * divided by the
      * number of players in the run to normalize regen speed.
      * 
-     * Without this, N players with regeneration = Nx healing speed since each player's regen would
+     * Without this, N players with regeneration = Nx healing speed since each
+     * player's regen would
      * stack.
      */
     public static void onRegenerationHeal(ServerPlayerEntity regenPlayer, float healAmount) {
@@ -420,7 +413,8 @@ public class SharedStatsHandler {
                 regenPlayer.getName().getString(), healAmount, normalizedHeal, playerCount,
                 regenerationHealAccumulator);
 
-        // Only apply healing when we've accumulated at least 0.5 HP (prevents constant tiny
+        // Only apply healing when we've accumulated at least 0.5 HP (prevents constant
+        // tiny
         // updates)
         if (regenerationHealAccumulator >= 0.5f) {
             float healToApply = regenerationHealAccumulator;
@@ -462,7 +456,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player's absorption amount changes (from golden apples, etc). Updates the
+     * Called when a player's absorption amount changes (from golden apples, etc).
+     * Updates the
      * master absorption and syncs to all other players.
      */
     public static void onAbsorptionChanged(ServerPlayerEntity changedPlayer, float newAbsorption) {
@@ -525,10 +520,13 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player naturally regenerates health (from saturation/hunger). The healing
-     * amount is divided by the number of players in the run to normalize regen speed.
+     * Called when a player naturally regenerates health (from saturation/hunger).
+     * The healing
+     * amount is divided by the number of players in the run to normalize regen
+     * speed.
      * 
-     * Without this, N players = Nx regen speed since each player's regen would stack.
+     * Without this, N players = Nx regen speed since each player's regen would
+     * stack.
      */
     public static void onNaturalRegen(ServerPlayerEntity regenPlayer, float healAmount) {
         if (isSyncing)
@@ -577,7 +575,8 @@ public class SharedStatsHandler {
                 regenPlayer.getName().getString(), healAmount, normalizedHeal, playerCount,
                 regenAccumulator);
 
-        // Only apply healing when we've accumulated at least 0.5 HP (prevents constant tiny
+        // Only apply healing when we've accumulated at least 0.5 HP (prevents constant
+        // tiny
         // updates)
         if (regenAccumulator >= 0.5f) {
             float healToApply = regenAccumulator;
@@ -616,7 +615,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player's hunger changes. Updates master values and syncs to all other players.
+     * Called when a player's hunger changes. Updates master values and syncs to all
+     * other players.
      */
     public static void onPlayerHungerChanged(ServerPlayerEntity player, int newFoodLevel,
             float newSaturation) {
@@ -683,10 +683,12 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Called when a player's hunger/saturation drains from natural regeneration. The drain is
+     * Called when a player's hunger/saturation drains from natural regeneration.
+     * The drain is
      * divided by the number of players to normalize drain rate.
      * 
-     * Without this, N players = Nx hunger drain since each player's regen consumes hunger.
+     * Without this, N players = Nx hunger drain since each player's regen consumes
+     * hunger.
      */
     public static void onNaturalHungerDrain(ServerPlayerEntity drainPlayer, int foodDrain,
             float satDrain) {
@@ -781,7 +783,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Periodic sync check - ensures all players stay in sync. Called from server tick event.
+     * Periodic sync check - ensures all players stay in sync. Called from server
+     * tick event.
      */
     public static void tickSync(MinecraftServer server) {
         if (isSyncing)
@@ -836,7 +839,8 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Sets the syncing flag. Used by other shared handlers (like SharedPotionHandler) to prevent
+     * Sets the syncing flag. Used by other shared handlers (like
+     * SharedPotionHandler) to prevent
      * heal/damage operations from triggering additional syncs.
      */
     public static void setSyncing(boolean syncing) {
