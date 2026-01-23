@@ -211,12 +211,12 @@ public class SettingsInfoGui {
                 }
 
                 private ItemStack createCloseItem() {
-                        ItemStack item = new ItemStack(Items.BARRIER);
-                        item.set(DataComponentTypes.CUSTOM_NAME, createItemName("Close",
-                                        Formatting.RED, Formatting.BOLD));
+                        ItemStack item = new ItemStack(Items.EMERALD);
+                        item.set(DataComponentTypes.CUSTOM_NAME, createItemName("Save settings",
+                                        Formatting.GREEN, Formatting.BOLD));
 
                         LoreComponent lore = new LoreComponent(List.of(
-                                        Text.literal("Click to close this menu.")
+                                        Text.literal("Click to save and close this menu.")
                                                         .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.DARK_GRAY))));
                         item.set(DataComponentTypes.LORE, lore);

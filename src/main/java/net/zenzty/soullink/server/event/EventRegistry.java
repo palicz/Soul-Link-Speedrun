@@ -225,10 +225,8 @@ public class EventRegistry {
                                 Text.literal("Open run options").formatted(Formatting.GRAY)))))
                 .append(Text.literal(".").formatted(Formatting.GRAY)), false);
 
-        player.sendMessage(Text.empty(), false);
-
-        player.sendMessage(Text.empty().append(Text.literal("Having troubles? ")
-                .formatted(Formatting.GRAY))
+        player.sendMessage(Text.empty()
+                .append(Text.literal("Having troubles? ").formatted(Formatting.GRAY))
                 .append(Text.literal("/settings").setStyle(Style.EMPTY.withColor(Formatting.AQUA)
                         .withClickEvent(new ClickEvent.RunCommand("/settings"))
                         .withHoverEvent(new HoverEvent.ShowText(
