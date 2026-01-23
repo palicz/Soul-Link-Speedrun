@@ -160,24 +160,26 @@ public class SharedStatsHandler {
                 float syncedDamageAmount = oldHealth - sharedHealth;
                 List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
 
-                // Broadcast damage notification to all players
-                // Convert from half-hearts to full hearts for display (Minecraft stores health as
-                // 0-20, where 1 heart = 2)
-                // Round to nearest 0.5 hearts and ensure minimum of 0.5 for display
-                float damageInHearts = syncedDamageAmount / 2.0f;
-                float roundedDamage = Math.max(0.5f, Math.round(damageInHearts * 2.0f) / 2.0f);
-                String damageText = String.format(java.util.Locale.US, "%.1f", roundedDamage);
-                net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
-                        .append(RunManager.getPrefix())
-                        .append(net.minecraft.text.Text.literal(damagedPlayer.getName().getString())
-                                .formatted(net.minecraft.util.Formatting.WHITE))
-                        .append(net.minecraft.text.Text.literal(" has taken ")
-                                .formatted(net.minecraft.util.Formatting.GRAY))
-                        .append(net.minecraft.text.Text.literal(damageText + " ❤")
-                                .formatted(net.minecraft.util.Formatting.RED))
-                        .append(net.minecraft.text.Text.literal(" damage.")
-                                .formatted(net.minecraft.util.Formatting.GRAY));
-                server.getPlayerManager().broadcast(damageNotification, false);
+                // Broadcast damage notification to all players (if combat log is enabled)
+                if (net.zenzty.soullink.server.settings.Settings.getInstance().isDamageLogEnabled()) {
+                    // Convert from half-hearts to full hearts for display (Minecraft stores health as
+                    // 0-20, where 1 heart = 2)
+                    // Round to nearest 0.5 hearts and ensure minimum of 0.5 for display
+                    float damageInHearts = syncedDamageAmount / 2.0f;
+                    float roundedDamage = Math.max(0.5f, Math.round(damageInHearts * 2.0f) / 2.0f);
+                    String damageText = String.format(java.util.Locale.US, "%.1f", roundedDamage);
+                    net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
+                            .append(RunManager.getPrefix())
+                            .append(net.minecraft.text.Text.literal(damagedPlayer.getName().getString())
+                                    .formatted(net.minecraft.util.Formatting.WHITE))
+                            .append(net.minecraft.text.Text.literal(" has taken ")
+                                    .formatted(net.minecraft.util.Formatting.GRAY))
+                            .append(net.minecraft.text.Text.literal(damageText + " ❤")
+                                    .formatted(net.minecraft.util.Formatting.RED))
+                            .append(net.minecraft.text.Text.literal(" damage.")
+                                    .formatted(net.minecraft.util.Formatting.GRAY));
+                    server.getPlayerManager().broadcast(damageNotification, false);
+                }
 
                 for (ServerPlayerEntity player : players) {
                     if (player == damagedPlayer || player.isSpectator() || player.isCreative())

@@ -219,11 +219,22 @@ public class EventRegistry {
         // Settings tip
         player.sendMessage(Text.empty().append(Text.literal("TIP: ").formatted(Formatting.YELLOW))
                 .append(Text.literal("Customize your next run with ").formatted(Formatting.GRAY))
-                .append(Text.literal("/settings").setStyle(Style.EMPTY.withColor(Formatting.GOLD)
-                        .withClickEvent(new ClickEvent.RunCommand("/settings"))
+                .append(Text.literal("/chaos").setStyle(Style.EMPTY.withColor(Formatting.GOLD)
+                        .withClickEvent(new ClickEvent.RunCommand("/chaos"))
                         .withHoverEvent(new HoverEvent.ShowText(
                                 Text.literal("Open run options").formatted(Formatting.GRAY)))))
                 .append(Text.literal(".").formatted(Formatting.GRAY)), false);
+
+        player.sendMessage(Text.empty(), false);
+
+        player.sendMessage(Text.empty().append(Text.literal("Having troubles? ")
+                .formatted(Formatting.GRAY))
+                .append(Text.literal("/settings").setStyle(Style.EMPTY.withColor(Formatting.AQUA)
+                        .withClickEvent(new ClickEvent.RunCommand("/settings"))
+                        .withHoverEvent(new HoverEvent.ShowText(
+                                Text.literal("Open info settings").formatted(Formatting.GRAY))))),
+                false);
+
     }
 
     /**

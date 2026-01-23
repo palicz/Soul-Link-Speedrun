@@ -11,9 +11,10 @@ import net.minecraft.util.Formatting;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.settings.SettingsGui;
+import net.zenzty.soullink.server.settings.SettingsInfoGui;
 
 /**
- * Registers all mod commands: /start, /stoprun, /runinfo, /settings, /reset
+ * Registers all mod commands: /start, /stoprun, /runinfo, /settings, /chaos, /reset
  */
 public class CommandRegistry {
 
@@ -39,7 +40,11 @@ public class CommandRegistry {
                                         dispatcher.register(CommandManager.literal("runinfo")
                                                         .executes(CommandRegistry::handleRunInfo));
 
-                                        // /settings - Open the settings GUI
+                                        // /chaos - Open the chaos settings GUI (difficulty, half heart, etc.)
+                                        dispatcher.register(CommandManager.literal("chaos")
+                                                        .executes(CommandRegistry::handleChaos));
+
+                                        // /settings - Open the info settings GUI (combat log, bug report, commands)
                                         dispatcher.register(CommandManager.literal("settings")
                                                         .executes(CommandRegistry::handleSettings));
 
@@ -131,9 +136,19 @@ public class CommandRegistry {
                 return Command.SINGLE_SUCCESS;
         }
 
-        private static int handleSettings(CommandContext<ServerCommandSource> context) {
+        private static int handleChaos(CommandContext<ServerCommandSource> context) {
                 if (context.getSource().getEntity() instanceof ServerPlayerEntity player) {
                         SettingsGui.open(player);
+                        return Command.SINGLE_SUCCESS;
+                }
+                context.getSource().sendError(
+                                RunManager.formatMessage("Only players can use this command."));
+                return 0;
+        }
+
+        private static int handleSettings(CommandContext<ServerCommandSource> context) {
+                if (context.getSource().getEntity() instanceof ServerPlayerEntity player) {
+                        SettingsInfoGui.open(player);
                         return Command.SINGLE_SUCCESS;
                 }
                 context.getSource().sendError(

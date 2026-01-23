@@ -18,6 +18,7 @@ public class Settings {
     private boolean halfHeartMode = false;
     private boolean sharedPotions = false;
     private boolean sharedJumping = false;
+    private boolean damageLogEnabled = true; // Combat log - can be toggled immediately
 
     // Pending settings to be applied on next run
     private SettingsSnapshot pendingSnapshot = null;
@@ -78,6 +79,16 @@ public class Settings {
 
     public void setSharedJumping(boolean sharedJumping) {
         this.sharedJumping = sharedJumping;
+    }
+
+    // ==================== DAMAGE LOG ====================
+
+    public boolean isDamageLogEnabled() {
+        return damageLogEnabled;
+    }
+
+    public void setDamageLogEnabled(boolean damageLogEnabled) {
+        this.damageLogEnabled = damageLogEnabled;
     }
 
     // ==================== UTILITY ====================
