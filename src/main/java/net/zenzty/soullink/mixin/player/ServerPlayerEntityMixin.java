@@ -13,46 +13,48 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.event.EventRegistry;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.settings.Settings;
 
 /**
- * Mixin for ServerPlayerEntity to prevent death during active runs and sync healing.
+ * Mixin for ServerPlayerEntity: Runners (and non-Manhunt) trigger game over on death. Hunters use
+ * custom respawn (spectator, drop items, 5s countdown, respawn).
  */
 @Mixin(ServerPlayerEntity.class)
 public abstract class ServerPlayerEntityMixin {
 
-    /**
-     * Final safety net - cancel any death during an active run. This prevents the death screen from
-     * ever appearing. This is the correct place to detect death because armor/enchantment damage
-     * reductions have already been applied.
-     */
     @Inject(method = "onDeath", at = @At("HEAD"), cancellable = true)
-    private void preventDeathDuringRun(DamageSource damageSource, CallbackInfo ci) {
+    private void onDeathHandler(DamageSource damageSource, CallbackInfo ci) {
         ServerPlayerEntity player = (ServerPlayerEntity) (Object) this;
         RunManager runManager = RunManager.getInstance();
 
-        // Only intercept death during active runs
         if (runManager == null || !runManager.isRunActive()) {
+            return;
+        }
+
+        if (Settings.getInstance().isManhuntMode() && ManhuntManager.getInstance().isHunter(player)) {
+            SoulLink.LOGGER.info("Hunter {} died - triggering custom respawn", player.getName().getString());
+            ci.cancel();
+            player.setHealth(player.getMaxHealth());
+            EventRegistry.handleHunterDeath(player, damageSource, runManager);
             return;
         }
 
         SoulLink.LOGGER.info("Player {} died during active run - triggering game over",
                 player.getName().getString());
 
-        // Cancel the death event to prevent death screen
         ci.cancel();
 
-        // Broadcast death message to all players (use vanilla death message format)
         Text deathMessage = damageSource.getDeathMessage(player);
         Text formattedDeathMessage = Text.empty().append(RunManager.getPrefix())
                 .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
                 .append(deathMessage.copy().formatted(Formatting.RED));
         runManager.getServer().getPlayerManager().broadcast(formattedDeathMessage, false);
 
-        // Restore health so player doesn't look dead
         player.setHealth(player.getMaxHealth());
 
-        // Clear lingering harmful effects and extinguish fire
         List<RegistryEntry<StatusEffect>> effectsToRemove = player.getStatusEffects().stream()
                 .filter(effect -> !effect.getEffectType().value().isBeneficial())
                 .map(StatusEffectInstance::getEffectType).toList();
@@ -60,7 +62,6 @@ public abstract class ServerPlayerEntityMixin {
         effectsToRemove.forEach(player::removeStatusEffect);
         player.extinguish();
 
-        // Trigger game over if not already in that state
         if (!runManager.isGameOver()) {
             net.minecraft.server.MinecraftServer server = runManager.getServer();
             if (server != null) {
@@ -72,5 +73,4 @@ public abstract class ServerPlayerEntityMixin {
             }
         }
     }
-
 }

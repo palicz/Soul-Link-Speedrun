@@ -9,11 +9,13 @@ import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.GameMode;
+import net.zenzty.soullink.server.manhunt.SpeedrunnerSelectorGui;
 import net.zenzty.soullink.server.settings.SettingsGui;
+import net.zenzty.soullink.server.settings.SettingsInfoGui;
 
 /**
- * Mixin to allow spectators to interact with the Soul Link settings GUI. Normally, spectators
- * cannot click on inventory slots.
+ * Mixin to allow spectators to interact with Soul Link GUIs: chaos settings, info settings, and the
+ * Runner/Hunter selector (Manhunt). Normally, spectators cannot click on inventory slots.
  */
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class SpectatorInteractionMixin {
@@ -22,9 +24,9 @@ public abstract class SpectatorInteractionMixin {
     public ServerPlayerEntity player;
 
     /**
-     * Intercepts inventory click packets to allow spectators to use the settings GUI. This mixin
-     * only bypasses the spectator check and delegates all logic to the ScreenHandler. All packet
-     * synchronization must originate from the ScreenHandler to maintain revision counter integrity.
+     * Intercepts inventory click packets to allow spectators to use Soul Link GUIs. Only bypasses
+     * the spectator check; all logic runs in the ScreenHandler. Packet sync must originate from the
+     * ScreenHandler to keep revision counters correct.
      */
     @Inject(method = "onClickSlot", at = @At("HEAD"), cancellable = true)
     private void onClickSlotSpectator(ClickSlotC2SPacket packet, CallbackInfo ci) {
@@ -33,16 +35,22 @@ public abstract class SpectatorInteractionMixin {
             return;
         }
 
-        // Check if player is using our settings GUI
+        // Chaos settings, info settings, or Runner/Hunter selector
         if (player.currentScreenHandler instanceof SettingsGui.SettingsScreenHandler handler) {
             // Basic validation - check if the packet's syncId matches the current handler
             // Most other validation (slot bounds, etc.) is handled inside onSlotClick
             if (packet.syncId() == handler.syncId) {
-                // Delegate all logic to the handler - it will handle cursor clearing and packet
-                // sending
                 handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
-
-                // Cancel to prevent Minecraft's default spectator handling from blocking the click
+                ci.cancel();
+            }
+        } else if (player.currentScreenHandler instanceof SettingsInfoGui.InfoSettingsScreenHandler handler) {
+            if (packet.syncId() == handler.syncId) {
+                handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
+                ci.cancel();
+            }
+        } else if (player.currentScreenHandler instanceof SpeedrunnerSelectorGui.SelectorScreenHandler handler) {
+            if (packet.syncId() == handler.syncId) {
+                handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
                 ci.cancel();
             }
         }
