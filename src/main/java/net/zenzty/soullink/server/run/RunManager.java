@@ -18,10 +18,14 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.village.raid.Raid;
+import net.minecraft.village.raid.RaidManager;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
+import net.zenzty.soullink.mixin.server.RaidAccessor;
+import net.zenzty.soullink.mixin.server.RaidManagerAccessor;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -140,8 +144,9 @@ public class RunManager {
 
         SoulLink.LOGGER.info("Starting new run...");
 
-        // Clear any lingering Ender Dragon bossbar from previous run
+        // Clear any lingering bossbars from previous run
         clearEnderDragonBossbar();
+        clearRaidBossbars();
 
         // Apply any pending settings
         Settings.getInstance().applyPendingSettings();
@@ -404,13 +409,66 @@ public class RunManager {
                 try {
                     ServerBossBar bossBar = ((EnderDragonFightAccessor) fight).getBossBar();
                     if (bossBar != null) {
-                        bossBar.clearPlayers();
+                        forceClearBossBar(bossBar);
                         SoulLink.LOGGER.debug("Cleared Ender Dragon bossbar from world: {}",
                                 world.getRegistryKey().getValue());
                     }
                 } catch (Exception e) {
                     SoulLink.LOGGER.warn("Failed to clear Ender Dragon bossbar: {}",
                             e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Force-clears a bossbar by adding all online players first, then removing them. This ensures
+     * the removal packet is sent to all clients, even if the players were already removed from the
+     * bossbar's internal player list (e.g., when they died).
+     */
+    private void forceClearBossBar(ServerBossBar bossBar) {
+        // Set invisible first to prevent the bossbar from being re-shown by ongoing game logic
+        bossBar.setVisible(false);
+        // Add all online players to the bossbar first to ensure they're in the player list
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            bossBar.addPlayer(player);
+        }
+        // Now clear - this will send removal packets to all added players
+        bossBar.clearPlayers();
+    }
+
+    /**
+     * Clears all raid bossbars from all players. This is needed when starting a new run before
+     * Minecraft has naturally cleaned up the raid bossbars from a completed or abandoned run. Note:
+     * This method must be called from the server main thread. It uses a two-pass approach to avoid
+     * ConcurrentModificationException when invalidating raids.
+     */
+    private void clearRaidBossbars() {
+        // Check all worlds for active raids and clear their bossbars
+        for (ServerWorld world : server.getWorlds()) {
+            RaidManager raidManager = world.getRaidManager();
+            if (raidManager == null) {
+                continue;
+            }
+
+            // Pass 1: Collect raids into a temporary list to avoid concurrent modification
+            List<Raid> raidsToClean =
+                    new ArrayList<>(((RaidManagerAccessor) raidManager).getRaids().values());
+
+            // Pass 2: Invalidate each raid and clear its bossbar
+            for (Raid raid : raidsToClean) {
+                try {
+                    // Invalidate the raid to stop it from ticking and re-showing the bossbar
+                    raid.invalidate();
+
+                    ServerBossBar bossBar = ((RaidAccessor) raid).getBar();
+                    if (bossBar != null) {
+                        forceClearBossBar(bossBar);
+                        SoulLink.LOGGER.debug("Cleared raid bossbar from world: {}",
+                                world.getRegistryKey().getValue());
+                    }
+                } catch (Exception e) {
+                    SoulLink.LOGGER.warn("Failed to clear raid bossbar: {}", e.getMessage());
                 }
             }
         }
