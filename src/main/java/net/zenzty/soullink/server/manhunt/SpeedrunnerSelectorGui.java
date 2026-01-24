@@ -38,13 +38,8 @@ public class SpeedrunnerSelectorGui {
 
     // Player head slots: top row and side columns (0, 8) are filler; content fills rows 1–5,
     // cols 1–7 with no gaps. Confirm at 49; heads use the rest in row-major order.
-    private static final int[] HEAD_SLOTS = {
-            10, 11, 12, 13, 14, 15, 16,
-            19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34,
-            37, 38, 39, 40, 41, 42, 43,
-            46, 47, 48, 50, 51, 52
-    };
+    private static final int[] HEAD_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
+            28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 46, 47, 48, 50, 51, 52};
 
     /**
      * Opens the role selector GUI for a player.
@@ -117,7 +112,8 @@ public class SpeedrunnerSelectorGui {
 
         private ItemStack createPlayerHead(ServerPlayerEntity player) {
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
-            head.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(player.getGameProfile()));
+            head.set(DataComponentTypes.PROFILE,
+                    ProfileComponent.ofStatic(player.getGameProfile()));
 
             boolean isRunner = ManhuntManager.getInstance().isSpeedrunner(player.getUuid());
             String role = isRunner ? "RUNNER" : "HUNTER";
@@ -131,16 +127,14 @@ public class SpeedrunnerSelectorGui {
                             .setStyle(Style.EMPTY.withItalic(false).withFormatting(Formatting.GRAY))
                             .append(Text.literal(role).setStyle(
                                     Style.EMPTY.withItalic(false).withFormatting(roleColor))),
-                    Text.empty(),
-                    isRunner
+                    Text.empty(), isRunner
                             ? Text.literal("Shares health with other Runners")
                                     .setStyle(Style.EMPTY.withItalic(false)
                                             .withFormatting(Formatting.DARK_GRAY))
                             : Text.literal("Vanilla mechanics, hunts Runners")
                                     .setStyle(Style.EMPTY.withItalic(false)
                                             .withFormatting(Formatting.DARK_GRAY)),
-                    Text.empty(),
-                    Text.literal("Click to toggle role").setStyle(
+                    Text.empty(), Text.literal("Click to toggle role").setStyle(
                             Style.EMPTY.withItalic(false).withFormatting(Formatting.YELLOW))));
             head.set(DataComponentTypes.LORE, lore);
 
@@ -222,7 +216,8 @@ public class SpeedrunnerSelectorGui {
     }
 
     /**
-     * Screen handler for the role selector GUI. Spectators can interact via SpectatorInteractionMixin.
+     * Screen handler for the role selector GUI. Spectators can interact via
+     * SpectatorInteractionMixin.
      */
     public static class SelectorScreenHandler extends ScreenHandler {
 
@@ -246,12 +241,13 @@ public class SpeedrunnerSelectorGui {
             int headerOffset = 36;
             for (int row = 0; row < 3; ++row) {
                 for (int col = 0; col < 9; ++col) {
-                    this.addSlot(new Slot(player.getInventory(), col + row * 9 + 9,
-                            8 + col * 18, 103 + row * 18 + headerOffset));
+                    this.addSlot(new Slot(player.getInventory(), col + row * 9 + 9, 8 + col * 18,
+                            103 + row * 18 + headerOffset));
                 }
             }
             for (int col = 0; col < 9; ++col) {
-                this.addSlot(new Slot(player.getInventory(), col, 8 + col * 18, 161 + headerOffset));
+                this.addSlot(
+                        new Slot(player.getInventory(), col, 8 + col * 18, 161 + headerOffset));
             }
         }
 
@@ -285,12 +281,16 @@ public class SpeedrunnerSelectorGui {
                 handleConfirm();
                 return;
             }
-
             UUID clickedPlayer = selectorInventory.getPlayerAtSlot(slotIndex);
             if (clickedPlayer != null) {
-                ManhuntManager.getInstance().toggleRole(clickedPlayer);
-                selectorInventory.populateItems();
-                playClickSound();
+                MinecraftServer server = RunManager.getInstance().getServer();
+                if (server != null) {
+                    server.execute(() -> {
+                        ManhuntManager.getInstance().toggleRole(clickedPlayer);
+                        selectorInventory.populateItems();
+                        playClickSound();
+                    });
+                }
             }
         }
 
@@ -365,9 +365,8 @@ public class SpeedrunnerSelectorGui {
 
             if (!hunterNames.isEmpty()) {
                 Text hunterMsg = Text.empty().append(RunManager.getPrefix())
-                        .append(Text.literal("Hunters: ").formatted(Formatting.GRAY))
-                        .append(Text.literal(String.join(", ", hunterNames))
-                                .formatted(Formatting.RED));
+                        .append(Text.literal("Hunters: ").formatted(Formatting.GRAY)).append(Text
+                                .literal(String.join(", ", hunterNames)).formatted(Formatting.RED));
                 server.getPlayerManager().broadcast(hunterMsg, false);
             }
         }
