@@ -31,11 +31,13 @@ import net.zenzty.soullink.server.run.RunManager;
  */
 public class SettingsGui {
 
-        // Slot positions in the GUI
+        // Slot positions: one column empty between columns, one row empty between rows.
+        // Row 1: 10, 12, 14, 16 | Row 2: empty | Row 3: 28 (Manhunt) | Row 5: 49 (confirm)
         private static final int DIFFICULTY_SLOT = 10;
         private static final int HALF_HEART_SLOT = 12;
         private static final int SHARED_POTIONS_SLOT = 14;
         private static final int SHARED_JUMPING_SLOT = 16;
+        private static final int MANHUNT_SLOT = 28; // Row 3, col 1 (one row below empty row 2)
         private static final int CONFIRM_SLOT = 49; // Bottom center
 
         // Size of double chest
@@ -47,16 +49,22 @@ public class SettingsGui {
          */
         public static void open(ServerPlayerEntity player) {
                 Settings settings = Settings.getInstance();
-                // Default difficulty should reflect the current world's actual difficulty.
-                // Normalize Peaceful -> Easy since the mod doesn't support Peaceful.
-                Difficulty worldDifficulty = player.getEntityWorld().getDifficulty();
-                if (worldDifficulty == Difficulty.PEACEFUL) {
-                        worldDifficulty = Difficulty.EASY;
+                // Pre-fill from pending if it exists (so the GUI shows queued changes, not the
+                // in-memory values for the current run). Otherwise use current settings and world
+                // difficulty.
+                Settings.SettingsSnapshot originalSnapshot;
+                Settings.SettingsSnapshot pending = settings.getPendingSnapshotOrNull();
+                if (pending != null) {
+                        originalSnapshot = pending;
+                } else {
+                        Difficulty worldDifficulty = player.getEntityWorld().getDifficulty();
+                        if (worldDifficulty == Difficulty.PEACEFUL) {
+                                worldDifficulty = Difficulty.EASY;
+                        }
+                        originalSnapshot = new Settings.SettingsSnapshot(worldDifficulty,
+                                        settings.isHalfHeartMode(), settings.isSharedPotions(),
+                                        settings.isSharedJumping(), settings.isManhuntMode());
                 }
-
-                Settings.SettingsSnapshot originalSnapshot = new Settings.SettingsSnapshot(
-                                worldDifficulty, settings.isHalfHeartMode(),
-                                settings.isSharedPotions(), settings.isSharedJumping());
 
                 // Create inventory with all slots
                 SettingsInventory inventory = new SettingsInventory(originalSnapshot);
@@ -90,6 +98,7 @@ public class SettingsGui {
                 private boolean pendingHalfHeart;
                 private boolean pendingSharedPotions;
                 private boolean pendingSharedJumping;
+                private boolean pendingManhunt;
                 private final Settings.SettingsSnapshot original;
 
                 public SettingsInventory(Settings.SettingsSnapshot original) {
@@ -99,6 +108,7 @@ public class SettingsGui {
                         this.pendingHalfHeart = original.halfHeartMode();
                         this.pendingSharedPotions = original.sharedPotions();
                         this.pendingSharedJumping = original.sharedJumping();
+                        this.pendingManhunt = original.manhuntMode();
 
                         populateItems();
                 }
@@ -125,6 +135,9 @@ public class SettingsGui {
 
                         // Add shared jumping setting
                         setStack(SHARED_JUMPING_SLOT, createSharedJumpingItem());
+
+                        // Add manhunt mode setting
+                        setStack(MANHUNT_SLOT, createManhuntItem());
 
                         // Add confirm button
                         setStack(CONFIRM_SLOT, createConfirmItem());
@@ -278,6 +291,40 @@ public class SettingsGui {
                         return item;
                 }
 
+                private ItemStack createManhuntItem() {
+                        ItemStack item = new ItemStack(
+                                        pendingManhunt ? Items.COMPASS : Items.ENDER_EYE);
+                        item.set(DataComponentTypes.CUSTOM_NAME, createItemName("Manhunt Mode",
+                                        Formatting.DARK_PURPLE, Formatting.BOLD));
+                        LoreComponent manhuntLore = new LoreComponent(List.of(
+                                        Text.literal("Status: ").setStyle(Style.EMPTY
+                                                        .withItalic(false)
+                                                        .withFormatting(Formatting.GRAY))
+                                                        .append(pendingManhunt ? Text
+                                                                        .literal("ENABLED")
+                                                                        .setStyle(Style.EMPTY
+                                                                                        .withItalic(false)
+                                                                                        .withFormatting(Formatting.GREEN))
+                                                                        : Text.literal("DISABLED")
+                                                                                        .setStyle(Style.EMPTY
+                                                                                                        .withItalic(false)
+                                                                                                        .withFormatting(Formatting.RED))),
+                                        Text.empty(),
+                                        Text.literal("Runners share health; Hunters hunt.")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                                        .withFormatting(Formatting.DARK_GRAY)),
+                                        Text.literal("30s head start, hunter respawns.")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                                        .withFormatting(Formatting.DARK_GRAY)),
+                                        Text.empty(),
+                                        Text.literal("Click to toggle").setStyle(Style.EMPTY
+                                                        .withItalic(false)
+                                                        .withFormatting(Formatting.DARK_GRAY))));
+                        item.set(DataComponentTypes.LORE, manhuntLore);
+
+                        return item;
+                }
+
                 private ItemStack createConfirmItem() {
                         ItemStack item = new ItemStack(Items.EMERALD);
                         item.set(DataComponentTypes.CUSTOM_NAME, createItemName("✓ Confirm",
@@ -340,6 +387,18 @@ public class SettingsGui {
                                                                                         false)
                                                                                         .withFormatting(Formatting.RED))));
 
+                        // Manhunt Mode
+                        loreLines.add(Text.literal("  • Manhunt Mode: ")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GRAY))
+                                        .append(pendingManhunt ? Text.literal("Enabled")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                                        .withFormatting(Formatting.GREEN))
+                                                        : Text.literal("Disabled").setStyle(
+                                                                        Style.EMPTY.withItalic(
+                                                                                        false)
+                                                                                        .withFormatting(Formatting.RED))));
+
                         loreLines.add(Text.empty());
                         loreLines.add(Text.literal("⚠ Settings apply next run!")
                                         .setStyle(Style.EMPTY.withItalic(false)
@@ -358,12 +417,13 @@ public class SettingsGui {
                         return pendingDifficulty != original.difficulty()
                                         || pendingHalfHeart != original.halfHeartMode()
                                         || pendingSharedPotions != original.sharedPotions()
-                                        || pendingSharedJumping != original.sharedJumping();
+                                        || pendingSharedJumping != original.sharedJumping()
+                                        || pendingManhunt != original.manhuntMode();
                 }
 
                 public Settings.SettingsSnapshot getPendingSnapshot() {
                         return new Settings.SettingsSnapshot(pendingDifficulty, pendingHalfHeart,
-                                        pendingSharedPotions, pendingSharedJumping);
+                                        pendingSharedPotions, pendingSharedJumping, pendingManhunt);
                 }
 
                 public Settings.SettingsSnapshot getOriginal() {
@@ -386,6 +446,10 @@ public class SettingsGui {
                         return pendingSharedJumping;
                 }
 
+                public boolean isPendingManhunt() {
+                        return pendingManhunt;
+                }
+
                 // Setters for pending values
                 public void cycleDifficulty() {
                         pendingDifficulty = switch (pendingDifficulty) {
@@ -405,6 +469,10 @@ public class SettingsGui {
 
                 public void toggleSharedJumping() {
                         pendingSharedJumping = !pendingSharedJumping;
+                }
+
+                public void toggleManhunt() {
+                        pendingManhunt = !pendingManhunt;
                 }
         }
 
@@ -547,6 +615,11 @@ public class SettingsGui {
                                         settingsInventory.populateItems();
                                         playClickSound();
                                 }
+                                case MANHUNT_SLOT -> {
+                                        settingsInventory.toggleManhunt();
+                                        settingsInventory.populateItems();
+                                        playClickSound();
+                                }
                                 case CONFIRM_SLOT -> {
                                         if (settingsInventory.hasChanges()) {
                                                 // Apply the changes
@@ -662,6 +735,26 @@ public class SettingsGui {
                                                 : "OFF";
                                 Text changeMsg = Text.empty().append(RunManager.getPrefix())
                                                 .append(Text.literal("  • Shared Jumping: ")
+                                                                .setStyle(Style.EMPTY
+                                                                                .withItalic(false)
+                                                                                .withFormatting(Formatting.GRAY)))
+                                                .append(Text.literal(oldVal).setStyle(Style.EMPTY
+                                                                .withItalic(false)
+                                                                .withFormatting(Formatting.RED)))
+                                                .append(Text.literal(" → ").setStyle(Style.EMPTY
+                                                                .withItalic(false)
+                                                                .withFormatting(Formatting.DARK_GRAY)))
+                                                .append(Text.literal(newVal).setStyle(Style.EMPTY
+                                                                .withItalic(false)
+                                                                .withFormatting(Formatting.GREEN)));
+                                server.getPlayerManager().broadcast(changeMsg, false);
+                        }
+
+                        if (settingsInventory.isPendingManhunt() != orig.manhuntMode()) {
+                                String oldVal = orig.manhuntMode() ? "ON" : "OFF";
+                                String newVal = settingsInventory.isPendingManhunt() ? "ON" : "OFF";
+                                Text changeMsg = Text.empty().append(RunManager.getPrefix())
+                                                .append(Text.literal("  • Manhunt Mode: ")
                                                                 .setStyle(Style.EMPTY
                                                                                 .withItalic(false)
                                                                                 .withFormatting(Formatting.GRAY)))

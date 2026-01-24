@@ -2,9 +2,14 @@ package net.zenzty.soullink.server.run;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -26,7 +31,10 @@ import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
 import net.zenzty.soullink.mixin.server.RaidAccessor;
 import net.zenzty.soullink.mixin.server.RaidManagerAccessor;
+import net.zenzty.soullink.server.event.EventRegistry;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.settings.Settings;
 
 /**
@@ -118,6 +126,8 @@ public class RunManager {
     public static synchronized void cleanup() {
         RunManager currentInstance = instance;
         if (currentInstance != null) {
+            ManhuntManager.getInstance().cleanupTeams(currentInstance.server);
+            CompassTrackingHandler.reset();
             currentInstance.worldService.deleteOldWorlds();
             currentInstance.deleteWorlds(true);
             instance = null;
@@ -144,12 +154,18 @@ public class RunManager {
 
         SoulLink.LOGGER.info("Starting new run...");
 
+        EventRegistry.clearDelayedTasks();
+
+        // Apply pending settings first so Manhunt and all Chaos options are correct for this run
+        Settings.getInstance().applyPendingSettings();
+
+        if (!Settings.getInstance().isManhuntMode()) {
+            ManhuntManager.getInstance().resetRoles();
+        }
+
         // Clear any lingering bossbars from previous run
         clearEnderDragonBossbar();
         clearRaidBossbars();
-
-        // Apply any pending settings
-        Settings.getInstance().applyPendingSettings();
 
         // Broadcast starting message
         server.getPlayerManager().broadcast(formatMessage("Generating new world..."), false);
@@ -211,7 +227,17 @@ public class RunManager {
         }
 
         // Handle timer (includes waiting for input)
-        timerService.tick(server, this::isInRun);
+        timerService.tick(server, this::isInRun, this::shouldSkipTimerActionBarFor);
+    }
+
+    /**
+     * True when the timer should not overwrite the action bar for this player. In Manhunt, hunters
+     * who just switched compass target keep the "Now tracking: X" message visible for a few seconds.
+     */
+    private boolean shouldSkipTimerActionBarFor(ServerPlayerEntity p) {
+        if (!Settings.getInstance().isManhuntMode()) return false;
+        if (!ManhuntManager.getInstance().isHunter(p)) return false;
+        return CompassTrackingHandler.shouldSuppressTimerActionBar(p.getUuid(), server.getTicks());
     }
 
     /**
@@ -235,18 +261,107 @@ public class RunManager {
 
         gameState = RunState.RUNNING;
 
-        // Teleport ALL players to spawn
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService);
+        boolean manhunt = Settings.getInstance().isManhuntMode();
+        ManhuntManager manhuntManager = ManhuntManager.getInstance();
+
+        if (manhunt) {
+            for (ServerWorld world : server.getWorlds()) {
+                try {
+                    server.getCommandManager().getDispatcher().execute(
+                            "execute in " + world.getRegistryKey().getValue()
+                                    + " run gamerule locator_bar false",
+                            server.getCommandSource().withSilent());
+                } catch (Exception e) {
+                    SoulLink.LOGGER.warn("Could not disable locator_bar in {}: {}",
+                            world.getRegistryKey().getValue(), e.getMessage());
+                }
+            }
+            manhuntManager.createTeams(server);
+            manhuntManager.assignPlayersToTeams(server);
         }
 
-        // Delete old worlds
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            boolean syncToShared = !manhunt || manhuntManager.isSpeedrunner(player);
+            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService, syncToShared);
+        }
+
         worldService.deleteOldWorlds();
 
-        // Broadcast ready message
+        if (manhunt) {
+            CompassTrackingHandler.reset();
+            for (UUID hunterId : manhuntManager.getHunters()) {
+                ServerPlayerEntity hunter = server.getPlayerManager().getPlayer(hunterId);
+                if (hunter != null) {
+                    CompassTrackingHandler.giveTrackingCompass(hunter);
+                }
+            }
+            applyHeadStartEffects(manhuntManager);
+        }
+
         server.getPlayerManager().broadcast(formatMessage("World ready! Good luck!"), false);
 
         SoulLink.LOGGER.info("World generation complete, run started");
+    }
+
+    private static final int HEAD_START_SECONDS = 30;
+
+    /**
+     * Applies the Manhunt head start: Speed for Runners, Blindness and Slowness for Hunters, and a
+     * countdown for Hunters. After 30 seconds, "HUNTERS RELEASED!" / "GO!" is shown.
+     */
+    private void applyHeadStartEffects(ManhuntManager manhuntManager) {
+        int durationTicks = HEAD_START_SECONDS * 20;
+
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (manhuntManager.isHunter(player)) {
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, durationTicks,
+                        0, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, durationTicks,
+                        255, false, false, true));
+            } else if (manhuntManager.isSpeedrunner(player)) {
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, durationTicks,
+                        0, false, false, true));
+            }
+        }
+
+        for (int i = HEAD_START_SECONDS; i >= 1; i--) {
+            final int secondsRemaining = i;
+            int delayTicks = (HEAD_START_SECONDS - i) * 20;
+
+            EventRegistry.scheduleDelayed(delayTicks, () -> {
+                if (gameState != RunState.RUNNING)
+                    return;
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    if (manhuntManager.isHunter(player)) {
+                        player.networkHandler.sendPacket(new TitleFadeS2CPacket(0, 25, 0));
+                        Formatting color = secondsRemaining <= 5 ? Formatting.RED : Formatting.GOLD;
+                        player.networkHandler.sendPacket(
+                                new TitleS2CPacket(Text.literal(String.valueOf(secondsRemaining))
+                                        .formatted(color, Formatting.BOLD)));
+                        player.networkHandler.sendPacket(new SubtitleS2CPacket(
+                                Text.literal("Catch the Runners!").formatted(Formatting.GRAY)));
+                    }
+                }
+            });
+        }
+
+        EventRegistry.scheduleDelayed(HEAD_START_SECONDS * 20, () -> {
+            if (gameState != RunState.RUNNING)
+                return;
+            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                if (manhuntManager.isSpeedrunner(player)) {
+                    player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
+                    player.networkHandler.sendPacket(new TitleS2CPacket(
+                            Text.literal("HUNTERS RELEASED!").formatted(Formatting.RED, Formatting.BOLD)));
+                } else if (manhuntManager.isHunter(player)) {
+                    player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
+                    player.networkHandler.sendPacket(new TitleS2CPacket(
+                            Text.literal("GO!").formatted(Formatting.GREEN, Formatting.BOLD)));
+                }
+            }
+        });
+
+        SoulLink.LOGGER.info("Applied head start effects - {} seconds", HEAD_START_SECONDS);
     }
 
     /**
@@ -283,10 +398,23 @@ public class RunManager {
         if (gameState == RunState.RUNNING && spawnFinder.hasFoundSpawn()) {
             ServerWorld overworld = worldService.getOverworld();
             if (overworld != null) {
-                teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos(),
-                        timerService);
-                player.sendMessage(formatMessageWithPlayer("", player.getName().getString(),
-                        " joined. Stats synced."), false);
+                if (Settings.getInstance().isManhuntMode()) {
+                    player.changeGameMode(GameMode.SPECTATOR);
+                    player.getInventory().clear();
+                    player.clearStatusEffects();
+                    BlockPos spawnPos = spawnFinder.getSpawnPos();
+                    if (spawnPos != null) {
+                        player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY() + 10,
+                                spawnPos.getZ() + 0.5, Set.of(), 0, 0, true);
+                    }
+                    player.sendMessage(formatMessage(
+                            "A run is in progress. You are spectating until it ends."), false);
+                } else {
+                    teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos(),
+                            timerService, true);
+                    player.sendMessage(formatMessageWithPlayer("", player.getName().getString(),
+                            " joined. Stats synced."), false);
+                }
             }
         }
     }
@@ -305,6 +433,9 @@ public class RunManager {
 
         timerService.stop();
         gameState = RunState.GAMEOVER;
+
+        ManhuntManager.getInstance().cleanupTeams(server);
+        CompassTrackingHandler.reset();
 
         String finalTime = timerService.getFormattedTime();
 
@@ -352,6 +483,9 @@ public class RunManager {
 
         timerService.stop();
         gameState = RunState.GAMEOVER;
+
+        ManhuntManager.getInstance().cleanupTeams(server);
+        CompassTrackingHandler.reset();
 
         String finalTime = timerService.getFormattedTime();
 
@@ -533,6 +667,13 @@ public class RunManager {
 
     public ServerWorld getLinkedNetherWorld(ServerWorld fromWorld) {
         return worldService.getLinkedNetherWorld(fromWorld);
+    }
+
+    /**
+     * Gets the current spawn position for the run. Used for hunter respawn and teleports.
+     */
+    public BlockPos getSpawnPos() {
+        return spawnFinder != null ? spawnFinder.getSpawnPos() : null;
     }
 
     public MinecraftServer getServer() {

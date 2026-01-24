@@ -35,35 +35,32 @@ public class PlayerTeleportService {
      * @param world The target world
      * @param spawnPos The spawn position
      * @param timerService The timer service for input tracking
+     * @param syncToShared When true, syncs to shared stats and starts timer on input. When false
+     *        (hunters in Manhunt), uses vanilla mechanics.
      */
     public void teleportToSpawn(ServerPlayerEntity player, ServerWorld world, BlockPos spawnPos,
-            TimerService timerService) {
+            TimerService timerService, boolean syncToShared) {
         if (player == null || world == null || spawnPos == null || timerService == null) {
             SoulLink.LOGGER.error("Failed to teleport to spawn: null parameter(s)");
             return;
         }
 
-        // Reset player for the run
         resetPlayer(player);
 
-        // Teleport to spawn
         player.teleport(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
                 Set.of(), 0, 0, true);
 
-        // Clear any title
         if (player.networkHandler != null) {
             player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
         }
 
-        // Sync stats
-        SharedStatsHandler.syncPlayerToSharedStats(player);
+        if (syncToShared) {
+            SharedStatsHandler.syncPlayerToSharedStats(player);
+            timerService.beginWaitingForInput(player);
+        }
 
-        // Play ready sound
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.0f, 1.5f);
-
-        // Set up timer tracking for first player
-        timerService.beginWaitingForInput(player);
     }
 
     /**

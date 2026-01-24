@@ -88,10 +88,14 @@ public class TimerService {
      *
      * @param server The Minecraft server
      * @param isInRunCheck Function to check if a player is in the run
+     * @param skipActionBarFor When this returns true for a player, the action bar (timer or ready
+     *        message) is not sent so other messages (e.g. compass tracking in Manhunt) can stay
+     *        visible
      * @return true if timer is running, false otherwise
      */
     public boolean tick(MinecraftServer server,
-            java.util.function.Predicate<ServerPlayerEntity> isInRunCheck) {
+            java.util.function.Predicate<ServerPlayerEntity> isInRunCheck,
+            java.util.function.Predicate<ServerPlayerEntity> skipActionBarFor) {
         // Wait for player input (movement or camera) to start timer
         if (waitingForInput) {
             if (checkForInput(server, isInRunCheck)) {
@@ -109,7 +113,7 @@ public class TimerService {
                             .append(Text.literal("00:00:00").formatted(Formatting.WHITE))
                             .append(Text.literal(" - Move to start").formatted(Formatting.GRAY));
                     for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                        if (isInRunCheck.test(player)) {
+                        if (isInRunCheck.test(player) && !skipActionBarFor.test(player)) {
                             player.sendMessage(readyText, true);
                         }
                     }
@@ -127,7 +131,7 @@ public class TimerService {
             Text actionBarText = Text.literal(getFormattedTime()).formatted(Formatting.WHITE);
 
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                if (isInRunCheck.test(player)) {
+                if (isInRunCheck.test(player) && !skipActionBarFor.test(player)) {
                     player.sendMessage(actionBarText, true);
                 }
             }

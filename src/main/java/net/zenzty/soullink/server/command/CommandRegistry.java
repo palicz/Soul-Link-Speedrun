@@ -9,7 +9,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.SpeedrunnerSelectorGui;
 import net.zenzty.soullink.server.run.RunManager;
+import net.zenzty.soullink.server.settings.Settings;
 import net.zenzty.soullink.server.settings.SettingsGui;
 import net.zenzty.soullink.server.settings.SettingsInfoGui;
 
@@ -70,10 +72,20 @@ public class CommandRegistry {
                         return 0;
                 }
 
-                // Start the run
-                runManager.startRun();
+                // Manhunt disabled (including pending): start immediately without opening the selector
+                if (!Settings.getInstance().isManhuntModeForNextRun()) {
+                        runManager.startRun();
+                        return Command.SINGLE_SUCCESS;
+                }
 
-                return Command.SINGLE_SUCCESS;
+                // Manhunt enabled: open the Runner/Hunter selector; startRun is called from the GUI on confirm
+                if (context.getSource().getEntity() instanceof ServerPlayerEntity player) {
+                        SpeedrunnerSelectorGui.open(player);
+                        return Command.SINGLE_SUCCESS;
+                }
+                context.getSource().sendError(
+                                RunManager.formatMessage("Only players can start a Manhunt run."));
+                return 0;
         }
 
         private static int handleStopRun(CommandContext<ServerCommandSource> context) {
