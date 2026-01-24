@@ -433,9 +433,11 @@ public class EventRegistry {
                 .append(deathMessage.copy().formatted(Formatting.RED));
         server.getPlayerManager().broadcast(formatted, false);
 
-        player.getStatusEffects().stream().filter(e -> !e.getEffectType().value().isBeneficial())
-                .map(e -> e.getEffectType()).toList().forEach(player::removeStatusEffect);
-        player.extinguish();
+        List<net.minecraft.registry.entry.RegistryEntry<net.minecraft.entity.effect.StatusEffect>> toRemove =
+                player.getStatusEffects().stream()
+                        .filter(e -> !e.getEffectType().value().isBeneficial())
+                        .map(e -> e.getEffectType()).toList();
+        toRemove.forEach(player::removeStatusEffect);
 
         player.changeGameMode(GameMode.SPECTATOR);
 
@@ -461,8 +463,8 @@ public class EventRegistry {
             scheduleDelayed((5 - i) * 20, () -> {
                 if (player.isRemoved() || !runManager.isRunActive())
                     return;
-                player.networkHandler.sendPacket(new TitleS2CPacket(
-                        Text.literal(String.valueOf(c)).formatted(Formatting.RED, Formatting.BOLD)));
+                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(String.valueOf(c))
+                        .formatted(Formatting.RED, Formatting.BOLD)));
                 player.networkHandler.sendPacket(new SubtitleS2CPacket(
                         Text.literal("Respawning...").formatted(Formatting.GRAY)));
             });
@@ -493,9 +495,8 @@ public class EventRegistry {
             }
 
             if (targetWorld != null && targetPos != null) {
-                WorldProperties.SpawnPoint sp =
-                        WorldProperties.SpawnPoint.create(
-                                targetWorld.getRegistryKey(), targetPos, 0.0f, 0.0f);
+                WorldProperties.SpawnPoint sp = WorldProperties.SpawnPoint
+                        .create(targetWorld.getRegistryKey(), targetPos, 0.0f, 0.0f);
                 player.setSpawnPoint(new ServerPlayerEntity.Respawn(sp, true), false);
                 player.teleport(targetWorld, targetPos.getX() + 0.5, targetPos.getY(),
                         targetPos.getZ() + 0.5, Set.of(), 0.0f, 0.0f, true);
