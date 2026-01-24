@@ -52,7 +52,8 @@ public class SettingsInfoGui {
                 // Open the screen
                 player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
                                 (syncId, playerInventory, playerEntity) -> {
-                                        return new InfoSettingsScreenHandler(syncId, inventory, player);
+                                        return new InfoSettingsScreenHandler(syncId, inventory,
+                                                        player);
                                 }, Text.literal("Soul Link Settings")
                                                 .formatted(Formatting.DARK_GRAY)));
         }
@@ -166,42 +167,48 @@ public class SettingsInfoGui {
 
                 private ItemStack createCommandsItem() {
                         ItemStack item = new ItemStack(Items.COMMAND_BLOCK);
-                        item.set(DataComponentTypes.CUSTOM_NAME, createItemName("Available Commands",
-                                        Formatting.GOLD, Formatting.BOLD));
+                        item.set(DataComponentTypes.CUSTOM_NAME, createItemName(
+                                        "Available Commands", Formatting.GOLD, Formatting.BOLD));
 
                         List<Text> loreLines = new ArrayList<>();
                         loreLines.add(Text.literal("Available Commands:").setStyle(Style.EMPTY
                                         .withItalic(false).withFormatting(Formatting.WHITE)));
                         loreLines.add(Text.empty());
-                        loreLines.add(Text.literal("  /start").setStyle(Style.EMPTY
-                                        .withItalic(false).withFormatting(Formatting.GREEN))
-                                        .append(Text.literal(" - Start a new run").setStyle(
-                                                        Style.EMPTY.withItalic(false)
+                        loreLines.add(Text.literal("  /start")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GREEN))
+                                        .append(Text.literal(" - Start a new run")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.GRAY))));
-                        loreLines.add(Text.literal("  /chaos").setStyle(Style.EMPTY
-                                        .withItalic(false).withFormatting(Formatting.GREEN))
-                                        .append(Text.literal(" - Open chaos settings").setStyle(
-                                                        Style.EMPTY.withItalic(false)
+                        loreLines.add(Text.literal("  /chaos")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GREEN))
+                                        .append(Text.literal(" - Open chaos settings")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.GRAY))));
-                        loreLines.add(Text.literal("  /settings").setStyle(Style.EMPTY
-                                        .withItalic(false).withFormatting(Formatting.GREEN))
-                                        .append(Text.literal(" - Open info settings").setStyle(
-                                                        Style.EMPTY.withItalic(false)
+                        loreLines.add(Text.literal("  /settings")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GREEN))
+                                        .append(Text.literal(" - Open info settings")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.GRAY))));
-                        loreLines.add(Text.literal("  /runinfo").setStyle(Style.EMPTY
-                                        .withItalic(false).withFormatting(Formatting.GREEN))
-                                        .append(Text.literal(" - Display run info").setStyle(
-                                                        Style.EMPTY.withItalic(false)
+                        loreLines.add(Text.literal("  /runinfo")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GREEN))
+                                        .append(Text.literal(" - Display run info")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.GRAY))));
-                        loreLines.add(Text.literal("  /reset").setStyle(Style.EMPTY
-                                        .withItalic(false).withFormatting(Formatting.GREEN))
-                                        .append(Text.literal(" - Reset current run").setStyle(
-                                                        Style.EMPTY.withItalic(false)
+                        loreLines.add(Text.literal("  /reset")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GREEN))
+                                        .append(Text.literal(" - Reset current run")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.GRAY))));
-                        loreLines.add(Text.literal("  /stoprun").setStyle(Style.EMPTY
-                                        .withItalic(false).withFormatting(Formatting.RED))
-                                        .append(Text.literal(" - Stop run (Admin)").setStyle(
-                                                        Style.EMPTY.withItalic(false)
+                        loreLines.add(Text.literal("  /stoprun")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.RED))
+                                        .append(Text.literal(" - Stop run (Admin)")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.GRAY))));
 
                         LoreComponent lore = new LoreComponent(loreLines);
@@ -215,10 +222,10 @@ public class SettingsInfoGui {
                         item.set(DataComponentTypes.CUSTOM_NAME, createItemName("Save settings",
                                         Formatting.GREEN, Formatting.BOLD));
 
-                        LoreComponent lore = new LoreComponent(List.of(
-                                        Text.literal("Click to save and close this menu.")
-                                                        .setStyle(Style.EMPTY.withItalic(false)
-                                                                        .withFormatting(Formatting.DARK_GRAY))));
+                        LoreComponent lore = new LoreComponent(List.of(Text
+                                        .literal("Click to save and close this menu.")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.DARK_GRAY))));
                         item.set(DataComponentTypes.LORE, lore);
 
                         return item;
@@ -346,8 +353,10 @@ public class SettingsInfoGui {
                                 }
                                 case COMMANDS_SLOT -> {
                                         // Send commands list to chat
-                                        player.sendMessage(RunManager.formatMessage(
-                                                        "Available Commands:"), false);
+                                        player.sendMessage(
+                                                        RunManager.formatMessage(
+                                                                        "Available Commands:"),
+                                                        false);
                                         player.sendMessage(Text.literal("/start")
                                                         .formatted(Formatting.GREEN)
                                                         .append(Text.literal(" - Start a new run")
@@ -355,12 +364,14 @@ public class SettingsInfoGui {
                                                         false);
                                         player.sendMessage(Text.literal("/chaos")
                                                         .formatted(Formatting.GREEN)
-                                                        .append(Text.literal(" - Open chaos settings")
+                                                        .append(Text.literal(
+                                                                        " - Open chaos settings")
                                                                         .formatted(Formatting.GRAY)),
                                                         false);
                                         player.sendMessage(Text.literal("/settings")
                                                         .formatted(Formatting.GREEN)
-                                                        .append(Text.literal(" - Open info settings")
+                                                        .append(Text.literal(
+                                                                        " - Open info settings")
                                                                         .formatted(Formatting.GRAY)),
                                                         false);
                                         player.sendMessage(Text.literal("/runinfo")
@@ -382,9 +393,10 @@ public class SettingsInfoGui {
                                 }
                                 case CLOSE_SLOT -> {
                                         if (settingsInventory.hasChanges()) {
-                                                // Apply the changes immediately (damage log can be toggled anytime)
-                                                Settings.getInstance()
-                                                                .setDamageLogEnabled(settingsInventory
+                                                // Apply the changes immediately (damage log can be
+                                                // toggled anytime)
+                                                Settings.getInstance().setDamageLogEnabled(
+                                                                settingsInventory
                                                                                 .isPendingDamageLog());
                                                 confirmed = true;
 
@@ -406,17 +418,22 @@ public class SettingsInfoGui {
                 }
 
                 private void playClickSound() {
-                        player.getEntityWorld().playSound(null, player.getX(), player.getY(),
-                                        player.getZ(),
-                                        net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK.value(),
-                                        net.minecraft.sound.SoundCategory.MASTER, 0.5f, 1.0f);
+                        player.networkHandler.sendPacket(
+                                        new net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket(
+                                                        net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK,
+                                                        net.minecraft.sound.SoundCategory.MASTER,
+                                                        player.getX(), player.getY(), player.getZ(),
+                                                        0.5f, 1.0f, player.getRandom().nextLong()));
                 }
 
                 private void playConfirmSound() {
-                        player.getEntityWorld().playSound(null, player.getX(), player.getY(),
-                                        player.getZ(),
-                                        net.minecraft.sound.SoundEvents.ENTITY_PLAYER_LEVELUP,
-                                        net.minecraft.sound.SoundCategory.MASTER, 0.5f, 1.0f);
+                        player.networkHandler.sendPacket(
+                                        new net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket(
+                                                        net.minecraft.registry.Registries.SOUND_EVENT
+                                                                        .getEntry(net.minecraft.sound.SoundEvents.ENTITY_PLAYER_LEVELUP),
+                                                        net.minecraft.sound.SoundCategory.MASTER,
+                                                        player.getX(), player.getY(), player.getZ(),
+                                                        0.5f, 1.0f, player.getRandom().nextLong()));
                 }
 
                 @Override
