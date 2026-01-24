@@ -430,7 +430,8 @@ public class SettingsInfoGui {
                         player.networkHandler.sendPacket(
                                         new net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket(
                                                         net.minecraft.registry.Registries.SOUND_EVENT
-                                                                        .getEntry(net.minecraft.sound.SoundEvents.ENTITY_PLAYER_LEVELUP),
+                                                                        .getEntry(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK
+                                                                                        .value()),
                                                         net.minecraft.sound.SoundCategory.MASTER,
                                                         player.getX(), player.getY(), player.getZ(),
                                                         0.5f, 1.0f, player.getRandom().nextLong()));

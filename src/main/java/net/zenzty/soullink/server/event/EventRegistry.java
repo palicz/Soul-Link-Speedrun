@@ -3,13 +3,19 @@ package net.zenzty.soullink.server.event;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -18,12 +24,18 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.GameMode;
+import net.minecraft.world.WorldProperties;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.run.RunState;
+import net.zenzty.soullink.server.settings.Settings;
 
 /**
  * Registers all Fabric events: server lifecycle, player connections, tick updates, entity events.
@@ -51,6 +63,7 @@ public class EventRegistry {
         registerConnectionEvents();
         registerTickEvents();
         registerEntityEvents();
+        CompassTrackingHandler.register();
     }
 
     /**
@@ -61,6 +74,8 @@ public class EventRegistry {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SoulLink.LOGGER.info("Server started - initializing RunManager");
             RunManager.init(server);
+            ManhuntManager.getInstance().resetRoles();
+            ManhuntManager.getInstance().cleanupTeams(server);
         });
 
         // Server stopping - cleanup worlds
@@ -240,7 +255,6 @@ public class EventRegistry {
      */
     private static void registerTickEvents() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            // Process any delayed tasks first
             processDelayedTasks(server);
 
             RunManager runManager;
@@ -251,14 +265,13 @@ public class EventRegistry {
             }
 
             if (runManager != null) {
-                // Update run manager (handles generation, timer, etc.)
                 runManager.tick();
+                if (runManager.isRunActive() && Settings.getInstance().isManhuntMode()) {
+                    CompassTrackingHandler.tick(server);
+                }
             }
 
-            // Process shared jumps at tick end (prevents race conditions with latency)
             SharedJumpHandler.processJumpsAtTickEnd(server);
-
-            // Periodic stats sync
             SharedStatsHandler.tickSync(server);
         });
     }
@@ -353,15 +366,16 @@ public class EventRegistry {
                         return;
                     }
 
-                    // If player health hit 0 or below (shouldn't happen - mixin should catch this)
-                    // This is a backup check - ServerPlayerEntityMixin.preventDeathDuringRun should
-                    // have already cancelled onDeath() and triggered game over
                     if (player.getHealth() <= 0) {
                         SoulLink.LOGGER.warn(
-                                "Player {} reached 0 health despite mixin check - triggering game over",
+                                "Player {} reached 0 health despite mixin check - triggering death handler",
                                 player.getName().getString());
-
-                        handlePlayerDeath(player, source, runManager);
+                        if (Settings.getInstance().isManhuntMode()
+                                && ManhuntManager.getInstance().isHunter(player)) {
+                            handleHunterDeath(player, source, runManager);
+                        } else {
+                            handlePlayerDeath(player, source, runManager);
+                        }
                         return;
                     }
 
@@ -371,6 +385,11 @@ public class EventRegistry {
                     }
 
                     if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
+                        return;
+                    }
+
+                    if (Settings.getInstance().isManhuntMode()
+                            && ManhuntManager.getInstance().isHunter(player)) {
                         return;
                     }
 
@@ -394,15 +413,118 @@ public class EventRegistry {
     }
 
     /**
+     * Handles Hunter death in Manhunt: broadcast, clear bad effects, switch to spectator, drop
+     * non-compass items, 5s countdown, then respawn at run spawn with full stats and a new tracking
+     * compass.
+     *
+     * @param player the hunter who died
+     * @param source the damage source
+     * @param runManager the run manager (used for spawn, run state, and overworld)
+     */
+    public static void handleHunterDeath(ServerPlayerEntity player, DamageSource source,
+            RunManager runManager) {
+        MinecraftServer server = runManager.getServer();
+        if (server == null)
+            return;
+
+        Text deathMessage = source.getDeathMessage(player);
+        Text formatted = Text.empty().append(RunManager.getPrefix())
+                .append(Text.literal("☠ ").formatted(Formatting.DARK_RED))
+                .append(deathMessage.copy().formatted(Formatting.RED));
+        server.getPlayerManager().broadcast(formatted, false);
+
+        List<net.minecraft.registry.entry.RegistryEntry<net.minecraft.entity.effect.StatusEffect>> toRemove =
+                player.getStatusEffects().stream()
+                        .filter(e -> !e.getEffectType().value().isBeneficial())
+                        .map(e -> e.getEffectType()).toList();
+        toRemove.forEach(player::removeStatusEffect);
+
+        player.changeGameMode(GameMode.SPECTATOR);
+
+        ServerWorld world = player.getEntityWorld();
+        double x = player.getX(), y = player.getY(), z = player.getZ();
+
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            ItemStack stack = player.getInventory().getStack(i);
+            if (!stack.isEmpty() && !stack.isOf(Items.COMPASS)) {
+                ItemEntity ent = new ItemEntity(world, x, y, z, stack.copy());
+                ent.setVelocity(world.getRandom().nextGaussian() * 0.05,
+                        world.getRandom().nextGaussian() * 0.05 + 0.2,
+                        world.getRandom().nextGaussian() * 0.05);
+                world.spawnEntity(ent);
+            }
+        }
+
+        player.getInventory().clear();
+        player.getEnderChestInventory().clear();
+
+        for (int i = 5; i >= 1; i--) {
+            final int c = i;
+            scheduleDelayed((5 - i) * 20, () -> {
+                if (player.isRemoved() || !runManager.isRunActive())
+                    return;
+                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(String.valueOf(c))
+                        .formatted(Formatting.RED, Formatting.BOLD)));
+                player.networkHandler.sendPacket(new SubtitleS2CPacket(
+                        Text.literal("Respawning...").formatted(Formatting.GRAY)));
+            });
+        }
+
+        scheduleDelayed(5 * 20, () -> {
+            if (player.isRemoved() || !runManager.isRunActive())
+                return;
+
+            player.networkHandler.sendPacket(new TitleS2CPacket(
+                    Text.literal("RESPAWN").formatted(Formatting.GREEN, Formatting.BOLD)));
+
+            player.changeGameMode(GameMode.SURVIVAL);
+
+            ServerWorld targetWorld = runManager.getTemporaryOverworld();
+            BlockPos targetPos = runManager.getSpawnPos();
+
+            ServerPlayerEntity.Respawn resp = player.getRespawn();
+            if (resp != null) {
+                var data = resp.respawnData();
+                if (data != null && runManager.isTemporaryWorld(data.getDimension())) {
+                    ServerWorld sw = server.getWorld(data.getDimension());
+                    if (sw != null) {
+                        targetWorld = sw;
+                        targetPos = data.getPos();
+                    }
+                }
+            }
+
+            if (targetWorld != null && targetPos != null) {
+                WorldProperties.SpawnPoint sp = WorldProperties.SpawnPoint
+                        .create(targetWorld.getRegistryKey(), targetPos, 0.0f, 0.0f);
+                player.setSpawnPoint(new ServerPlayerEntity.Respawn(sp, true), false);
+                player.teleport(targetWorld, targetPos.getX() + 0.5, targetPos.getY(),
+                        targetPos.getZ() + 0.5, Set.of(), 0.0f, 0.0f, true);
+            }
+
+            player.setHealth(player.getMaxHealth());
+            player.getHungerManager().setFoodLevel(20);
+            player.getHungerManager().setSaturationLevel(5.0f);
+
+            CompassTrackingHandler.giveTrackingCompass(player);
+
+            SoulLink.LOGGER.info("Hunter {} respawned after death", player.getName().getString());
+        });
+    }
+
+    /**
      * Schedule a task to run after a delay in ticks.
      */
     public static void scheduleDelayed(int delayTicks, Runnable task) {
         delayedTasks.add(new DelayedTask(delayTicks, task));
     }
 
-    // Kept for backward compatibility if needed, but redirects to the new one
-    public static void scheduleDelayed(MinecraftServer server, int delayTicks, Runnable task) {
-        scheduleDelayed(delayTicks, task);
+    /**
+     * Clears all pending delayed tasks. Called when starting a new run so that tasks from a
+     * previous run (e.g. hunter respawn countdown) do not carry over.
+     */
+    public static void clearDelayedTasks() {
+        delayedTasks.clear();
     }
 
     /**
