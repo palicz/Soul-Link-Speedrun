@@ -2,7 +2,6 @@ package net.zenzty.soullink.server.run;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
@@ -25,6 +24,8 @@ import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.EnderDragonFightAccessor;
+import net.zenzty.soullink.mixin.server.RaidAccessor;
+import net.zenzty.soullink.mixin.server.RaidManagerAccessor;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.settings.Settings;
 
@@ -426,6 +427,8 @@ public class RunManager {
      * bossbar's internal player list (e.g., when they died).
      */
     private void forceClearBossBar(ServerBossBar bossBar) {
+        // Set invisible first to prevent the bossbar from being re-shown by ongoing game logic
+        bossBar.setVisible(false);
         // Add all online players to the bossbar first to ensure they're in the player list
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             bossBar.addPlayer(player);
@@ -436,11 +439,11 @@ public class RunManager {
 
     /**
      * Clears all raid bossbars from all players. This is needed when starting a new run before
-     * Minecraft has naturally cleaned up the raid bossbars from a completed or abandoned run.
+     * Minecraft has naturally cleaned up the raid bossbars from a completed or abandoned run. Note:
+     * This method must be called from the server main thread. It uses a two-pass approach to avoid
+     * ConcurrentModificationException when invalidating raids.
      */
     private void clearRaidBossbars() {
-        int raidsCleared = 0;
-
         // Check all worlds for active raids and clear their bossbars
         for (ServerWorld world : server.getWorlds()) {
             RaidManager raidManager = world.getRaidManager();
@@ -448,68 +451,26 @@ public class RunManager {
                 continue;
             }
 
-            try {
-                // Use reflection to access the private raids field
-                // Note: The field type is Int2ObjectMap (FastUtil), which implements Map
-                java.lang.reflect.Field raidsField = null;
-                for (java.lang.reflect.Field field : raidManager.getClass().getDeclaredFields()) {
-                    if (Map.class.isAssignableFrom(field.getType())) {
-                        raidsField = field;
-                        break;
+            // Pass 1: Collect raids into a temporary list to avoid concurrent modification
+            List<Raid> raidsToClean =
+                    new ArrayList<>(((RaidManagerAccessor) raidManager).getRaids().values());
+
+            // Pass 2: Invalidate each raid and clear its bossbar
+            for (Raid raid : raidsToClean) {
+                try {
+                    // Invalidate the raid to stop it from ticking and re-showing the bossbar
+                    raid.invalidate();
+
+                    ServerBossBar bossBar = ((RaidAccessor) raid).getBar();
+                    if (bossBar != null) {
+                        forceClearBossBar(bossBar);
+                        SoulLink.LOGGER.debug("Cleared raid bossbar from world: {}",
+                                world.getRegistryKey().getValue());
                     }
+                } catch (Exception e) {
+                    SoulLink.LOGGER.warn("Failed to clear raid bossbar: {}", e.getMessage());
                 }
-
-                if (raidsField == null) {
-                    continue;
-                }
-
-                raidsField.setAccessible(true);
-                Object raidsObject = raidsField.get(raidManager);
-
-                if (!(raidsObject instanceof Map<?, ?> raidsMap)) {
-                    continue;
-                }
-
-                for (Object value : raidsMap.values()) {
-                    if (!(value instanceof Raid raid)) {
-                        continue;
-                    }
-
-                    try {
-                        // Use reflection to access the private bar field
-                        java.lang.reflect.Field barField = null;
-                        for (java.lang.reflect.Field field : raid.getClass().getDeclaredFields()) {
-                            if (field.getType() == ServerBossBar.class) {
-                                barField = field;
-                                break;
-                            }
-                        }
-
-                        if (barField == null) {
-                            continue;
-                        }
-
-                        barField.setAccessible(true);
-                        Object barObject = barField.get(raid);
-
-                        if (barObject instanceof ServerBossBar bossBar) {
-                            forceClearBossBar(bossBar);
-                            raidsCleared++;
-                            SoulLink.LOGGER.debug("Cleared raid bossbar from world: {}",
-                                    world.getRegistryKey().getValue());
-                        }
-                    } catch (Exception e) {
-                        SoulLink.LOGGER.warn("Failed to clear raid bossbar: {}", e.getMessage());
-                    }
-                }
-            } catch (Exception e) {
-                SoulLink.LOGGER.warn("Failed to access raids in world {}: {}",
-                        world.getRegistryKey().getValue(), e.getMessage());
             }
-        }
-
-        if (raidsCleared > 0) {
-            SoulLink.LOGGER.debug("Cleared {} raid bossbar(s)", raidsCleared);
         }
     }
 
