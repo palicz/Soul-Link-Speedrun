@@ -627,6 +627,11 @@ public class SettingsGui {
                                                                 .applySnapshot(settingsInventory
                                                                                 .getPendingSnapshot());
                                                 confirmed = true;
+                                                MinecraftServer server = RunManager.getInstance()
+                                                                .getServer();
+                                                if (server != null) {
+                                                        SettingsPersistence.save(server);
+                                                }
 
                                                 // Broadcast changes to all players
                                                 broadcastChanges();

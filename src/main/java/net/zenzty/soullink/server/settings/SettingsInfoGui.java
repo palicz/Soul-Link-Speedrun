@@ -15,6 +15,7 @@ import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.Style;
@@ -399,6 +400,10 @@ public class SettingsInfoGui {
                                                                 settingsInventory
                                                                                 .isPendingDamageLog());
                                                 confirmed = true;
+                                                MinecraftServer server = RunManager.getInstance().getServer();
+                                                if (server != null) {
+                                                        SettingsPersistence.save(server);
+                                                }
 
                                                 player.sendMessage(RunManager.formatMessage(
                                                                 "Combat log " + (settingsInventory

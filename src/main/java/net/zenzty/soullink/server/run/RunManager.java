@@ -36,6 +36,7 @@ import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
 import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.settings.Settings;
+import net.zenzty.soullink.server.settings.SettingsPersistence;
 
 /**
  * Facade that coordinates run lifecycle using dedicated services. Manages game state transitions
@@ -158,6 +159,7 @@ public class RunManager {
 
         // Apply pending settings first so Manhunt and all Chaos options are correct for this run
         Settings.getInstance().applyPendingSettings();
+        SettingsPersistence.save(server);
 
         if (!Settings.getInstance().isManhuntMode()) {
             ManhuntManager.getInstance().resetRoles();
