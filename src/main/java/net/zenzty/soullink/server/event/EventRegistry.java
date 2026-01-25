@@ -36,6 +36,7 @@ import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.run.RunState;
 import net.zenzty.soullink.server.settings.Settings;
+import net.zenzty.soullink.server.settings.SettingsPersistence;
 
 /**
  * Registers all Fabric events: server lifecycle, player connections, tick updates, entity events.
@@ -70,17 +71,19 @@ public class EventRegistry {
      * Registers server lifecycle events for initialization and cleanup.
      */
     private static void registerServerEvents() {
-        // Server started - initialize RunManager
+        // Server started - initialize RunManager and load persisted settings
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SoulLink.LOGGER.info("Server started - initializing RunManager");
             RunManager.init(server);
+            SettingsPersistence.load(server);
             ManhuntManager.getInstance().resetRoles();
             ManhuntManager.getInstance().cleanupTeams(server);
         });
 
-        // Server stopping - cleanup worlds
+        // Server stopping - save settings, then cleanup worlds
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            SoulLink.LOGGER.info("Server stopping - cleaning up temporary worlds");
+            SoulLink.LOGGER.info("Server stopping - saving settings and cleaning up temporary worlds");
+            SettingsPersistence.save(server);
             delayedTasks.clear(); // Clear pending tasks
             RunManager.cleanup();
         });
