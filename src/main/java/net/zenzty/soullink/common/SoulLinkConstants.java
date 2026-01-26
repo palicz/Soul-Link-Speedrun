@@ -17,6 +17,9 @@ public final class SoulLinkConstants {
     public static final int STATIC_DISCHARGE_SLOWNESS_EFFECT_TICKS = 60;
     public static final int STATIC_DISCHARGE_SLOWNESS_COOLDOWN_TICKS = 20;
     public static final int SKELETON_ARROW_DELAY_TICK = 10;
+    public static final double WITHER_SKELETON_CHAIN_RANGE = 16.0;
+    public static final int WITHER_SKELETON_SPEED_BOOST_DURATION_TICKS = 200; // 10 seconds
+    public static final int WITHER_SKELETON_SPEED_BOOST_AMPLIFIER = 1;
 
     private SoulLinkConstants() {
         // Prevent instantiation

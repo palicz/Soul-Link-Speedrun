@@ -13,7 +13,10 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.SpiderEntity;
+import net.minecraft.entity.mob.WitherSkeletonEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
@@ -27,6 +30,7 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.WorldProperties;
 import net.zenzty.soullink.SoulLink;
@@ -407,6 +411,54 @@ public class EventRegistry {
                                 playerWorld.setBlockState(playerPos,
                                         Blocks.COBWEB.getDefaultState());
                             }
+                        }
+
+                        // Wither Skeleton chain: When a Wither Skeleton attacks a player,
+                        // nearby Wither Skeletons gain speed boost
+                        if (attacker instanceof WitherSkeletonEntity witherSkeleton) {
+                            // Check if player has Wither effect (applied by Wither Skeleton on
+                            // attack)
+                            // Use a small delay to ensure the effect has been applied
+                            scheduleDelayed(1, () -> {
+                                if (witherSkeleton.isRemoved() || !witherSkeleton.isAlive()
+                                        || player.isRemoved() || !player.isAlive()) {
+                                    return;
+                                }
+
+                                if (!runManager.isRunActive()) {
+                                    return;
+                                }
+
+                                // Check if player has Wither effect
+                                if (!player.hasStatusEffect(StatusEffects.WITHER)) {
+                                    return;
+                                }
+
+                                // Find nearby Wither Skeletons and give them speed boost
+                                Box searchBox = witherSkeleton.getBoundingBox()
+                                        .expand(SoulLinkConstants.WITHER_SKELETON_CHAIN_RANGE);
+                                java.util.List<WitherSkeletonEntity> nearbyWitherSkeletons =
+                                        playerWorld.getEntitiesByClass(WitherSkeletonEntity.class,
+                                                searchBox, skeleton -> skeleton.isAlive()
+                                                        && skeleton != witherSkeleton);
+
+                                for (WitherSkeletonEntity nearbySkeleton : nearbyWitherSkeletons) {
+                                    // Ensure they target the player if they don't already
+                                    if (nearbySkeleton.getTarget() != player) {
+                                        nearbySkeleton.setTarget(player);
+                                    }
+
+                                    // Apply speed boost to nearby Wither Skeletons
+                                    nearbySkeleton.addStatusEffect(new StatusEffectInstance(
+                                            StatusEffects.SPEED,
+                                            SoulLinkConstants.WITHER_SKELETON_SPEED_BOOST_DURATION_TICKS,
+                                            SoulLinkConstants.WITHER_SKELETON_SPEED_BOOST_AMPLIFIER,
+                                            false, // ambient
+                                            true, // visible
+                                            true // show particles
+                                    ));
+                                }
+                            });
                         }
                     }
 
