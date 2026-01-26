@@ -19,6 +19,7 @@ public class Settings {
     private boolean sharedJumping = false;
     private boolean manhuntMode = false;
     private boolean damageLogEnabled = true; // Combat log - can be toggled immediately
+    private boolean swarmIntelligence = true;
 
     // Pending settings to be applied on next run
     private SettingsSnapshot pendingSnapshot = null;
@@ -113,6 +114,16 @@ public class Settings {
 
     public void setDamageLogEnabled(boolean damageLogEnabled) {
         this.damageLogEnabled = damageLogEnabled;
+    }
+
+    // ==================== SWARM INTELLIGENCE ====================
+
+    public boolean isSwarmIntelligenceEnabled() {
+        return swarmIntelligence;
+    }
+
+    public void setSwarmIntelligenceEnabled(boolean swarmIntelligence) {
+        this.swarmIntelligence = swarmIntelligence;
     }
 
     // ==================== UTILITY ====================
