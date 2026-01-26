@@ -16,6 +16,7 @@
 		"interaction.FireBlockMixin",
 		"entity.MobEntityMixin",
 		"entity.CreeperEntityMixin",
+		"entity.SkeletonEntityMixin",
 		"ui.ScreenHandlerAccessor",
 		"ui.SpectatorInteractionMixin",
 		"server.ServerWorldAccessor",
