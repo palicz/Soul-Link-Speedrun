@@ -40,4 +40,5 @@ public abstract class StatusEffectMixin {
                     "Error in SharedPotionHandler.onEffectApplied - allowing vanilla behavior", e);
         }
     }
+
 }
