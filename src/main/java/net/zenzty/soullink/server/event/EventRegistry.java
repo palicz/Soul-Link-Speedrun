@@ -9,9 +9,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.mob.SpiderEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
@@ -35,6 +37,7 @@ import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
 import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.run.RunState;
+import net.zenzty.soullink.server.settings.RunDifficulty;
 import net.zenzty.soullink.server.settings.Settings;
 import net.zenzty.soullink.server.settings.SettingsPersistence;
 
@@ -82,7 +85,8 @@ public class EventRegistry {
 
         // Server stopping - save settings, then cleanup worlds
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            SoulLink.LOGGER.info("Server stopping - saving settings and cleaning up temporary worlds");
+            SoulLink.LOGGER
+                    .info("Server stopping - saving settings and cleaning up temporary worlds");
             SettingsPersistence.save(server);
             delayedTasks.clear(); // Clear pending tasks
             RunManager.cleanup();
@@ -389,6 +393,21 @@ public class EventRegistry {
 
                     if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
                         return;
+                    }
+
+                    // Extreme mode: Place cobweb at player's feet when spider attacks
+                    if (Settings.getInstance().getDifficulty() == RunDifficulty.EXTREME) {
+                        var attacker = source.getAttacker();
+                        if (attacker instanceof SpiderEntity) {
+                            BlockPos playerPos = player.getBlockPos();
+
+                            // Only place cobweb if the block at feet is air or replaceable
+                            if (playerWorld.getBlockState(playerPos).isAir()
+                                    || playerWorld.getBlockState(playerPos).isReplaceable()) {
+                                playerWorld.setBlockState(playerPos,
+                                        Blocks.COBWEB.getDefaultState());
+                            }
+                        }
                     }
 
                     if (Settings.getInstance().isManhuntMode()
