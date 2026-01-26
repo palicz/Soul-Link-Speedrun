@@ -95,7 +95,22 @@ public class MobEntityMixin implements SwarmAlertAccessor {
             equipArmorIfEmpty(self, serverWorld, EquipmentSlot.FEET, armorTier, random);
         }
 
-        if (self.getMainHandStack().isEmpty() && random.nextFloat() < EXTREME_WEAPON_CHANCE) {
+        // For skeletons, ensure they have a bow in extreme mode
+        if (self instanceof net.minecraft.entity.mob.SkeletonEntity) {
+            if (self.getMainHandStack().isEmpty() || !self.getMainHandStack().isOf(Items.BOW)) {
+                ItemStack bowStack = new ItemStack(Items.BOW);
+                int weaponTier = rollTier(random);
+                if (weaponTier != -1) {
+                    int enchantLevel = getEnchantLevel(weaponTier);
+                    ItemStack enchanted = EnchantmentHelper.enchant(random, bowStack, enchantLevel,
+                            serverWorld.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT)
+                                    .streamEntries().map(entry -> (RegistryEntry<Enchantment>) entry));
+                    self.equipStack(EquipmentSlot.MAINHAND, enchanted);
+                } else {
+                    self.equipStack(EquipmentSlot.MAINHAND, bowStack);
+                }
+            }
+        } else if (self.getMainHandStack().isEmpty() && random.nextFloat() < EXTREME_WEAPON_CHANCE) {
             int weaponTier = rollTier(random);
             if (weaponTier != -1) {
                 equipWeapon(self, serverWorld, weaponTier, random);

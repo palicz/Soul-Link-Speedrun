@@ -553,17 +553,24 @@ public class EventRegistry {
      * Process any delayed tasks that are ready to run.
      */
     private static void processDelayedTasks(MinecraftServer server) {
+        // First pass: decrement ticks and collect tasks ready to run
+        List<Runnable> tasksToRun = new ArrayList<>();
         Iterator<DelayedTask> iterator = delayedTasks.iterator();
         while (iterator.hasNext()) {
             DelayedTask task = iterator.next();
             task.remainingTicks--;
             if (task.remainingTicks <= 0) {
-                try {
-                    task.task.run();
-                } catch (Exception e) {
-                    SoulLink.LOGGER.error("Error running delayed task", e);
-                }
+                tasksToRun.add(task.task);
                 iterator.remove();
+            }
+        }
+        // Second pass: execute tasks (this prevents ConcurrentModificationException
+        // if tasks schedule new delayed tasks)
+        for (Runnable task : tasksToRun) {
+            try {
+                task.run();
+            } catch (Exception e) {
+                SoulLink.LOGGER.error("Error running delayed task", e);
             }
         }
     }
