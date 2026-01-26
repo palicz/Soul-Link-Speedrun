@@ -51,7 +51,7 @@ public class WorldService {
         currentSeed = new Random().nextLong();
 
         // Get the difficulty from settings
-        Difficulty serverDifficulty = Settings.getInstance().getDifficulty();
+        Difficulty serverDifficulty = Settings.getInstance().getVanillaDifficulty();
 
         // Create temporary Overworld
         ServerWorld vanillaOverworld = server.getOverworld();
