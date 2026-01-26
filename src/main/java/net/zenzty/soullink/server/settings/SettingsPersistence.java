@@ -84,10 +84,18 @@ public final class SettingsPersistence {
         }
         if (data.difficulty != null && !data.difficulty.isBlank()) {
             try {
-                Difficulty d = Difficulty.valueOf(data.difficulty.toUpperCase());
-                s.setDifficulty(d);
-            } catch (IllegalArgumentException ignored) {
-                // keep default
+                // Try to parse as RunDifficulty first (new format)
+                RunDifficulty rd = RunDifficulty.valueOf(data.difficulty.toUpperCase());
+                s.setDifficulty(rd);
+            } catch (IllegalArgumentException e) {
+                // Fallback: try to parse as vanilla Difficulty and convert (old format compatibility)
+                try {
+                    Difficulty d = Difficulty.valueOf(data.difficulty.toUpperCase());
+                    RunDifficulty rd = RunDifficulty.fromVanilla(d);
+                    s.setDifficulty(rd);
+                } catch (IllegalArgumentException ignored) {
+                    // keep default
+                }
             }
         }
         if (data.halfHeartMode != null) {

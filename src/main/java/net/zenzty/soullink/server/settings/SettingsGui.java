@@ -85,17 +85,6 @@ public class SettingsGui {
         }
 
         /**
-         * Creates a non-italic text for item names.
-         */
-        private static Text createItemName(String text, Formatting... formattings) {
-                Style style = Style.EMPTY.withItalic(false);
-                for (Formatting formatting : formattings) {
-                        style = style.withFormatting(formatting);
-                }
-                return Text.literal(text).setStyle(style);
-        }
-
-        /**
          * Virtual inventory that tracks pending settings changes. This is a server-side only
          * inventory that doesn't represent any real container in the world.
          */
@@ -476,6 +465,7 @@ public class SettingsGui {
                 private String getDifficultyName(RunDifficulty difficulty) {
                         return SettingsGui.getDifficultyName(difficulty);
                 }
+        }
 
         /**
          * Virtual slot that prevents all item interactions - items cannot be taken, inserted, or
