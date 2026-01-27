@@ -2,6 +2,7 @@ package net.zenzty.soullink.mixin.entity;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -9,6 +10,7 @@ import net.minecraft.entity.AreaEffectCloudEntity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LightningEntity;
 import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.CreeperEntity;
@@ -23,9 +25,22 @@ import net.zenzty.soullink.server.settings.Settings;
 @Mixin(CreeperEntity.class)
 public class CreeperEntityMixin {
 
+    @Accessor("CHARGED")
+    static TrackedData<Boolean> soullink$getChargedTrackedData() {
+        throw new AssertionError();
+    }
+
     @Unique
     private long soullink$lastSlownessCloudTick =
             -SoulLinkConstants.STATIC_DISCHARGE_SLOWNESS_COOLDOWN_TICKS;
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void soullink$ensureAlwaysCharged(CallbackInfo ci) {
+        CreeperEntity self = (CreeperEntity) (Object) this;
+        if (!self.getEntityWorld().isClient()) {
+            self.getDataTracker().set(soullink$getChargedTrackedData(), true);
+        }
+    }
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void soullink$emitStaticDischargeCloud(CallbackInfo ci) {
@@ -78,9 +93,6 @@ public class CreeperEntityMixin {
     @Inject(method = "explode", at = @At("TAIL"))
     private void soullink$spawnStaticDischargeLightning(CallbackInfo ci) {
         CreeperEntity self = (CreeperEntity) (Object) this;
-        if (!self.isTouchingWaterOrRain()) {
-            return;
-        }
 
         if (!(self.getEntityWorld() instanceof ServerWorld serverWorld)) {
             return;

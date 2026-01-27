@@ -104,13 +104,15 @@ public class MobEntityMixin implements SwarmAlertAccessor {
                     int enchantLevel = getEnchantLevel(weaponTier);
                     ItemStack enchanted = EnchantmentHelper.enchant(random, bowStack, enchantLevel,
                             serverWorld.getRegistryManager().getOrThrow(RegistryKeys.ENCHANTMENT)
-                                    .streamEntries().map(entry -> (RegistryEntry<Enchantment>) entry));
+                                    .streamEntries()
+                                    .map(entry -> (RegistryEntry<Enchantment>) entry));
                     self.equipStack(EquipmentSlot.MAINHAND, enchanted);
                 } else {
                     self.equipStack(EquipmentSlot.MAINHAND, bowStack);
                 }
             }
-        } else if (self.getMainHandStack().isEmpty() && random.nextFloat() < EXTREME_WEAPON_CHANCE) {
+        } else if (self.getMainHandStack().isEmpty()
+                && random.nextFloat() < EXTREME_WEAPON_CHANCE) {
             int weaponTier = rollTier(random);
             if (weaponTier != -1) {
                 equipWeapon(self, serverWorld, weaponTier, random);

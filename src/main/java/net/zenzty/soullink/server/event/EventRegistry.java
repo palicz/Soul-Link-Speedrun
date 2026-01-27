@@ -439,14 +439,10 @@ public class EventRegistry {
                                         .expand(SoulLinkConstants.WITHER_SKELETON_CHAIN_RANGE);
                                 java.util.List<WitherSkeletonEntity> nearbyWitherSkeletons =
                                         playerWorld.getEntitiesByClass(WitherSkeletonEntity.class,
-                                                searchBox, skeleton -> skeleton.isAlive()
-                                                        && skeleton != witherSkeleton);
+                                                searchBox, skeleton -> skeleton.isAlive());
 
                                 for (WitherSkeletonEntity nearbySkeleton : nearbyWitherSkeletons) {
-                                    // Ensure they target the player if they don't already
-                                    if (nearbySkeleton.getTarget() != player) {
-                                        nearbySkeleton.setTarget(player);
-                                    }
+
 
                                     // Apply speed boost to nearby Wither Skeletons
                                     nearbySkeleton.addStatusEffect(new StatusEffectInstance(
