@@ -9,6 +9,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionTypes;
 import net.minecraft.world.rule.GameRules;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.settings.RunDifficulty;
 import net.zenzty.soullink.server.settings.Settings;
 import xyz.nucleoid.fantasy.Fantasy;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
@@ -51,17 +52,21 @@ public class WorldService {
         currentSeed = new Random().nextLong();
 
         // Get the difficulty from settings
-        Difficulty serverDifficulty = Settings.getInstance().getVanillaDifficulty();
+        RunDifficulty runDifficulty = Settings.getInstance().getDifficulty();
+        Difficulty serverDifficulty = runDifficulty.toVanilla();
+        boolean extremeMode = runDifficulty == RunDifficulty.EXTREME;
 
         // Create temporary Overworld
         ServerWorld vanillaOverworld = server.getOverworld();
         RuntimeWorldConfig overworldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD).setDifficulty(serverDifficulty)
-                .setGameRule(GameRules.ADVANCE_TIME, true).setSeed(currentSeed)
+                // In EXTREME mode, freeze time at midnight by disabling time advancement
+                .setGameRule(GameRules.ADVANCE_TIME, !extremeMode).setSeed(currentSeed)
                 .setGenerator(vanillaOverworld.getChunkManager().getChunkGenerator());
 
         overworldHandle = fantasy.openTemporaryWorld(overworldConfig);
-        overworldHandle.asWorld().setTimeOfDay(0);
+        // Set initial time based on difficulty: midnight and frozen for EXTREME, dawn otherwise
+        overworldHandle.asWorld().setTimeOfDay(extremeMode ? 18000L : 0L);
         SoulLink.LOGGER.info("Created temporary overworld: {}",
                 overworldHandle.getRegistryKey().getValue());
 

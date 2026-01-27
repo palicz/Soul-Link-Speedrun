@@ -35,6 +35,7 @@ import net.zenzty.soullink.server.event.EventRegistry;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.manhunt.CompassTrackingHandler;
 import net.zenzty.soullink.server.manhunt.ManhuntManager;
+import net.zenzty.soullink.server.settings.RunDifficulty;
 import net.zenzty.soullink.server.settings.Settings;
 import net.zenzty.soullink.server.settings.SettingsPersistence;
 
@@ -222,10 +223,18 @@ public class RunManager {
             return;
         }
 
-        // Manually advance time in temporary overworld
+        // Control time in temporary overworld based on difficulty
         ServerWorld tempOverworld = worldService.getOverworld();
         if (tempOverworld != null) {
-            tempOverworld.setTimeOfDay(tempOverworld.getTimeOfDay() + 1);
+            if (Settings.getInstance().getDifficulty() == RunDifficulty.EXTREME) {
+                // In EXTREME mode, keep time frozen at midnight (18000)
+                if (tempOverworld.getTimeOfDay() != 18000L) {
+                    tempOverworld.setTimeOfDay(18000L);
+                }
+            } else {
+                // Other difficulties: manually advance time
+                tempOverworld.setTimeOfDay(tempOverworld.getTimeOfDay() + 1);
+            }
         }
 
         // Handle timer (includes waiting for input)
@@ -234,11 +243,14 @@ public class RunManager {
 
     /**
      * True when the timer should not overwrite the action bar for this player. In Manhunt, hunters
-     * who just switched compass target keep the "Now tracking: X" message visible for a few seconds.
+     * who just switched compass target keep the "Now tracking: X" message visible for a few
+     * seconds.
      */
     private boolean shouldSkipTimerActionBarFor(ServerPlayerEntity p) {
-        if (!Settings.getInstance().isManhuntMode()) return false;
-        if (!ManhuntManager.getInstance().isHunter(p)) return false;
+        if (!Settings.getInstance().isManhuntMode())
+            return false;
+        if (!ManhuntManager.getInstance().isHunter(p))
+            return false;
         return CompassTrackingHandler.shouldSuppressTimerActionBar(p.getUuid(), server.getTicks());
     }
 
@@ -284,7 +296,8 @@ public class RunManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             boolean syncToShared = !manhunt || manhuntManager.isSpeedrunner(player);
-            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService, syncToShared);
+            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService,
+                    syncToShared);
         }
 
         worldService.deleteOldWorlds();
@@ -316,10 +329,10 @@ public class RunManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (manhuntManager.isHunter(player)) {
-                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, durationTicks,
-                        0, false, false, true));
-                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, durationTicks,
-                        255, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS,
+                        durationTicks, 0, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS,
+                        durationTicks, 255, false, false, true));
             } else if (manhuntManager.isSpeedrunner(player)) {
                 player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, durationTicks,
                         0, false, false, true));
@@ -353,8 +366,9 @@ public class RunManager {
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (manhuntManager.isSpeedrunner(player)) {
                     player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
-                    player.networkHandler.sendPacket(new TitleS2CPacket(
-                            Text.literal("HUNTERS RELEASED!").formatted(Formatting.RED, Formatting.BOLD)));
+                    player.networkHandler
+                            .sendPacket(new TitleS2CPacket(Text.literal("HUNTERS RELEASED!")
+                                    .formatted(Formatting.RED, Formatting.BOLD)));
                 } else if (manhuntManager.isHunter(player)) {
                     player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
                     player.networkHandler.sendPacket(new TitleS2CPacket(
@@ -409,8 +423,10 @@ public class RunManager {
                         player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY() + 10,
                                 spawnPos.getZ() + 0.5, Set.of(), 0, 0, true);
                     }
-                    player.sendMessage(formatMessage(
-                            "A run is in progress. You are spectating until it ends."), false);
+                    player.sendMessage(
+                            formatMessage(
+                                    "A run is in progress. You are spectating until it ends."),
+                            false);
                 } else {
                     teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos(),
                             timerService, true);
