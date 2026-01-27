@@ -17,7 +17,9 @@
 		"ui.ScreenHandlerAccessor",
 		"ui.SpectatorInteractionMixin",
 		"server.ServerWorldAccessor",
-		"server.EnderDragonFightAccessor"
+		"server.EnderDragonFightAccessor",
+		"server.RaidAccessor",
+		"server.RaidManagerAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

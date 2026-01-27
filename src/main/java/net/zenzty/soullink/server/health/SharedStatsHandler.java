@@ -1,20 +1,22 @@
 package net.zenzty.soullink.server.health;
 
 import java.util.List;
+import java.util.Locale;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
 import net.zenzty.soullink.SoulLink;
+import net.zenzty.soullink.server.manhunt.ManhuntManager;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.server.settings.Settings;
 
-// Note: Settings import is used for half heart mode max health calculations
-
 /**
  * Handles shared health, hunger, and saturation between all players. Implements the "Soul Link"
- * mechanic where all players share the same vital stats.
+ * mechanic where all players share the same vital stats. In Manhunt mode, only Runners participate.
  */
 public class SharedStatsHandler {
 
@@ -45,6 +47,28 @@ public class SharedStatsHandler {
      */
     private static float getMaxHealth() {
         return Settings.getInstance().isHalfHeartMode() ? 1.0f : 20.0f;
+    }
+
+    /**
+     * Returns whether this player participates in shared Soul Link stats. When Manhunt is off, all
+     * players in the run participate. When Manhunt is on, only Runners participate; Hunters use
+     * vanilla mechanics.
+     *
+     * @param player the player to check
+     * @return true if the player should share health, hunger, and related stats
+     */
+    private static boolean shouldParticipateInSoulLink(ServerPlayerEntity player) {
+        RunManager runManager;
+        try {
+            runManager = RunManager.getInstance();
+        } catch (IllegalStateException e) {
+            return false;
+        }
+        if (!runManager.isRunActive())
+            return false;
+        if (!Settings.getInstance().isManhuntMode())
+            return true;
+        return ManhuntManager.getInstance().isSpeedrunner(player);
     }
 
     /**
@@ -115,6 +139,8 @@ public class SharedStatsHandler {
             DamageSource damageSource) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(damagedPlayer))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -124,7 +150,6 @@ public class SharedStatsHandler {
         if (playerWorld == null)
             return;
 
-        // Only process if in a temporary world
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
@@ -160,34 +185,33 @@ public class SharedStatsHandler {
                 float syncedDamageAmount = oldHealth - sharedHealth;
                 List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
 
-                // Broadcast damage notification to all players
-                // Convert from half-hearts to full hearts for display (Minecraft stores health as
-                // 0-20, where 1 heart = 2)
-                // Round to nearest 0.5 hearts and ensure minimum of 0.5 for display
-                float damageInHearts = syncedDamageAmount / 2.0f;
-                float roundedDamage = Math.max(0.5f, Math.round(damageInHearts * 2.0f) / 2.0f);
-                String damageText = String.format(java.util.Locale.US, "%.1f", roundedDamage);
-                net.minecraft.text.Text damageNotification = net.minecraft.text.Text.empty()
-                        .append(RunManager.getPrefix())
-                        .append(net.minecraft.text.Text.literal(damagedPlayer.getName().getString())
-                                .formatted(net.minecraft.util.Formatting.WHITE))
-                        .append(net.minecraft.text.Text.literal(" has taken ")
-                                .formatted(net.minecraft.util.Formatting.GRAY))
-                        .append(net.minecraft.text.Text.literal(damageText + " ❤")
-                                .formatted(net.minecraft.util.Formatting.RED))
-                        .append(net.minecraft.text.Text.literal(" damage.")
-                                .formatted(net.minecraft.util.Formatting.GRAY));
-                server.getPlayerManager().broadcast(damageNotification, false);
+                // Broadcast damage notification to all players (if combat log is enabled)
+                if (Settings.getInstance().isDamageLogEnabled()) {
+                    // Convert from half-hearts to full hearts for display (Minecraft stores health
+                    // as
+                    // 0-20, where 1 heart = 2). Round to nearest 0.5 hearts and ensure minimum 0.5.
+                    float damageInHearts = syncedDamageAmount / 2.0f;
+                    float roundedDamage = Math.max(0.5f, Math.round(damageInHearts * 2.0f) / 2.0f);
+                    String damageText = String.format(Locale.US, "%.1f", roundedDamage);
+                    Text damageNotification = Text.empty().append(RunManager.getPrefix())
+                            .append(Text.literal(damagedPlayer.getName().getString())
+                                    .formatted(Formatting.WHITE))
+                            .append(Text.literal(" has taken ").formatted(Formatting.GRAY))
+                            .append(Text.literal(damageText + " ❤").formatted(Formatting.RED))
+                            .append(Text.literal(" damage.").formatted(Formatting.GRAY));
+                    server.getPlayerManager().broadcast(damageNotification, false);
+                }
 
                 for (ServerPlayerEntity player : players) {
                     if (player == damagedPlayer || player.isSpectator() || player.isCreative())
+                        continue;
+                    if (!shouldParticipateInSoulLink(player))
                         continue;
 
                     ServerWorld otherWorld = getPlayerWorld(player);
                     if (otherWorld == null)
                         continue;
 
-                    // Skip players not in the run
                     if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
                         continue;
 
@@ -229,9 +253,10 @@ public class SharedStatsHandler {
         if (server == null)
             return;
 
-        // Count players in the run
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (!shouldParticipateInSoulLink(player))
+                continue;
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
                 playerCount++;
@@ -241,7 +266,6 @@ public class SharedStatsHandler {
         if (playerCount == 0)
             return;
 
-        // Divide the damage by player count and accumulate
         float normalizedDamage = damageAmount / playerCount;
         damageAccumulator += normalizedDamage;
 
@@ -260,6 +284,8 @@ public class SharedStatsHandler {
 
             // Sync to all players
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                if (!shouldParticipateInSoulLink(player))
+                    continue;
                 ServerWorld otherWorld = getPlayerWorld(player);
                 if (otherWorld == null || !runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
                     continue;
@@ -289,6 +315,8 @@ public class SharedStatsHandler {
     public static void onPlayerHealed(ServerPlayerEntity healedPlayer, float newHealth) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(healedPlayer))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -306,7 +334,6 @@ public class SharedStatsHandler {
             float oldHealth = sharedHealth;
             sharedHealth = MathHelper.clamp(newHealth, 0.0f, getMaxHealth());
 
-            // Only sync if health increased
             if (sharedHealth > oldHealth) {
                 MinecraftServer server = runManager.getServer();
                 if (server == null)
@@ -314,6 +341,10 @@ public class SharedStatsHandler {
 
                 for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                     if (player == healedPlayer)
+                        continue;
+                    if (player.isSpectator() || player.isCreative())
+                        continue;
+                    if (!shouldParticipateInSoulLink(player))
                         continue;
 
                     if (player.isSpectator() || player.isCreative())
@@ -347,6 +378,8 @@ public class SharedStatsHandler {
     public static void onRegenerationHeal(ServerPlayerEntity regenPlayer, float healAmount) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(regenPlayer))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -363,9 +396,10 @@ public class SharedStatsHandler {
         if (server == null)
             return;
 
-        // Count players in the run
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (!shouldParticipateInSoulLink(player))
+                continue;
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
                 playerCount++;
@@ -398,6 +432,8 @@ public class SharedStatsHandler {
                 if (sharedHealth > oldHealth) {
                     // Sync to all players
                     for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                        if (!shouldParticipateInSoulLink(player))
+                            continue;
                         ServerWorld otherWorld = getPlayerWorld(player);
                         if (otherWorld == null)
                             continue;
@@ -428,6 +464,8 @@ public class SharedStatsHandler {
     public static void onAbsorptionChanged(ServerPlayerEntity changedPlayer, float newAbsorption) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(changedPlayer))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -440,7 +478,6 @@ public class SharedStatsHandler {
         if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
             return;
 
-        // Only sync if absorption actually changed
         if (Math.abs(newAbsorption - sharedAbsorption) < 0.1f)
             return;
 
@@ -453,9 +490,10 @@ public class SharedStatsHandler {
             if (server == null)
                 return;
 
-            // Sync to all other players
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (player == changedPlayer)
+                    continue;
+                if (!shouldParticipateInSoulLink(player))
                     continue;
 
                 ServerWorld otherWorld = getPlayerWorld(player);
@@ -485,6 +523,8 @@ public class SharedStatsHandler {
     public static void onNaturalRegen(ServerPlayerEntity regenPlayer, float healAmount) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(regenPlayer))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -501,9 +541,10 @@ public class SharedStatsHandler {
         if (server == null)
             return;
 
-        // Count players in the run
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (!shouldParticipateInSoulLink(player))
+                continue;
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
                 playerCount++;
@@ -536,6 +577,8 @@ public class SharedStatsHandler {
                 if (sharedHealth > oldHealth) {
                     // Sync to all players
                     for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                        if (!shouldParticipateInSoulLink(player))
+                            continue;
                         ServerWorld otherWorld = getPlayerWorld(player);
                         if (otherWorld == null)
                             continue;
@@ -563,6 +606,8 @@ public class SharedStatsHandler {
             float newSaturation) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(player))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -577,7 +622,6 @@ public class SharedStatsHandler {
 
         isSyncing = true;
         try {
-            // Check if values actually changed
             boolean foodChanged = newFoodLevel != sharedHunger;
             boolean satChanged = Math.abs(newSaturation - sharedSaturation) > 0.01f;
 
@@ -594,6 +638,8 @@ public class SharedStatsHandler {
 
             for (ServerPlayerEntity otherPlayer : server.getPlayerManager().getPlayerList()) {
                 if (otherPlayer == player)
+                    continue;
+                if (!shouldParticipateInSoulLink(otherPlayer))
                     continue;
 
                 ServerWorld otherWorld = getPlayerWorld(otherPlayer);
@@ -625,6 +671,8 @@ public class SharedStatsHandler {
             float satDrain) {
         if (isSyncing)
             return;
+        if (!shouldParticipateInSoulLink(drainPlayer))
+            return;
 
         RunManager runManager = RunManager.getInstance();
         if (runManager == null || !runManager.isRunActive())
@@ -641,9 +689,10 @@ public class SharedStatsHandler {
         if (server == null)
             return;
 
-        // Count players in the run
         int playerCount = 0;
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (!shouldParticipateInSoulLink(player))
+                continue;
             ServerWorld world = getPlayerWorld(player);
             if (world != null && runManager.isTemporaryWorld(world.getRegistryKey())) {
                 playerCount++;
@@ -680,8 +729,9 @@ public class SharedStatsHandler {
                     saturationDrainAccumulator = 0.0f;
                 }
 
-                // Sync to all players
                 for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    if (!shouldParticipateInSoulLink(player))
+                        continue;
                     ServerWorld otherWorld = getPlayerWorld(player);
                     if (otherWorld == null)
                         continue;
@@ -720,6 +770,8 @@ public class SharedStatsHandler {
         isSyncing = true;
         try {
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                if (!shouldParticipateInSoulLink(player))
+                    continue;
                 ServerWorld playerWorld = getPlayerWorld(player);
                 if (playerWorld == null)
                     continue;
@@ -727,7 +779,6 @@ public class SharedStatsHandler {
                 if (!runManager.isTemporaryWorld(playerWorld.getRegistryKey()))
                     continue;
 
-                // If player's values drift from master, correct them
                 float playerHealth = player.getHealth();
                 float playerAbsorption = player.getAbsorptionAmount();
                 int playerFood = player.getHungerManager().getFoodLevel();
