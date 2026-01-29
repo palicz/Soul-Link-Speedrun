@@ -57,7 +57,7 @@ public class SettingsGui {
                 if (pending != null) {
                         originalSnapshot = pending;
                 } else {
-                        Difficulty worldDifficulty = player.getEntityWorld().getDifficulty();
+                        Difficulty worldDifficulty = player.getServerWorld().getDifficulty();
                         if (worldDifficulty == Difficulty.PEACEFUL) {
                                 worldDifficulty = Difficulty.EASY;
                         }

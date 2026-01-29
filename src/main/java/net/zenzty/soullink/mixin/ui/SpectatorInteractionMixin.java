@@ -39,18 +39,21 @@ public abstract class SpectatorInteractionMixin {
         if (player.currentScreenHandler instanceof SettingsGui.SettingsScreenHandler handler) {
             // Basic validation - check if the packet's syncId matches the current handler
             // Most other validation (slot bounds, etc.) is handled inside onSlotClick
-            if (packet.syncId() == handler.syncId) {
-                handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
+            if (packet.getSyncId() == handler.syncId) {
+                handler.onSlotClick(packet.getSlot(), packet.getButton(), packet.getActionType(),
+                        player);
                 ci.cancel();
             }
         } else if (player.currentScreenHandler instanceof SettingsInfoGui.InfoSettingsScreenHandler handler) {
-            if (packet.syncId() == handler.syncId) {
-                handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
+            if (packet.getSyncId() == handler.syncId) {
+                handler.onSlotClick(packet.getSlot(), packet.getButton(), packet.getActionType(),
+                        player);
                 ci.cancel();
             }
         } else if (player.currentScreenHandler instanceof SpeedrunnerSelectorGui.SelectorScreenHandler handler) {
-            if (packet.syncId() == handler.syncId) {
-                handler.onSlotClick(packet.slot(), packet.button(), packet.actionType(), player);
+            if (packet.getSyncId() == handler.syncId) {
+                handler.onSlotClick(packet.getSlot(), packet.getButton(), packet.getActionType(),
+                        player);
                 ci.cancel();
             }
         }

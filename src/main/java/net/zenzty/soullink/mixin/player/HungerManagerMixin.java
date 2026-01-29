@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.entity.player.HungerManager;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
@@ -31,14 +32,17 @@ public abstract class HungerManagerMixin {
     private float previousSaturation = 5.0f;
 
     /**
-     * After each hunger update tick, check if values changed and sync. Note: In 1.21.11,
-     * HungerManager.update() takes ServerPlayerEntity directly.
-     * 
-     * Hunger drain from natural regeneration is divided by player count to prevent Nx drain rate.
-     * Hunger gains from eating are synced normally.
+     * After each hunger update tick, check if values changed and sync.
+     * HungerManager.update(PlayerEntity, ...) in 1.21.1; we only sync for server players. Hunger
+     * drain from natural regeneration is divided by player count to prevent Nx drain rate. Hunger
+     * gains from eating are synced normally.
      */
     @Inject(method = "update", at = @At("TAIL"))
-    private void afterHungerUpdate(ServerPlayerEntity player, CallbackInfo ci) {
+    private void afterHungerUpdate(PlayerEntity player, CallbackInfo ci) {
+        if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+            return;
+        }
+
         // Skip if syncing to prevent loops
         if (SharedStatsHandler.isSyncing()) {
             previousFoodLevel = this.foodLevel;
@@ -53,8 +57,7 @@ public abstract class HungerManagerMixin {
             return;
         }
 
-        // Get the player's world - ServerPlayerEntity.getEntityWorld() returns ServerWorld directly
-        ServerWorld serverWorld = player.getEntityWorld();
+        ServerWorld serverWorld = serverPlayer.getServerWorld();
 
         if (!runManager.isTemporaryWorld(serverWorld.getRegistryKey())) {
             previousFoodLevel = this.foodLevel;
@@ -77,10 +80,10 @@ public abstract class HungerManagerMixin {
                 float satDrain = Math.max(0f, previousSaturation - this.saturationLevel);
 
                 // Use normalized hunger drain (divided by player count)
-                SharedStatsHandler.onNaturalHungerDrain(player, foodDrain, satDrain);
+                SharedStatsHandler.onNaturalHungerDrain(serverPlayer, foodDrain, satDrain);
             } else {
                 // Hunger gain (eating) - sync normally
-                SharedStatsHandler.onPlayerHungerChanged(player, this.foodLevel,
+                SharedStatsHandler.onPlayerHungerChanged(serverPlayer, this.foodLevel,
                         this.saturationLevel);
             }
 

@@ -30,23 +30,17 @@ public class CommandRegistry {
                                         dispatcher.register(CommandManager.literal("start")
                                                         .executes(CommandRegistry::handleStart));
 
-                                        // /stoprun - Admin command to stop current run (requires
-                                        // gamemaster permission)
-                                        dispatcher.register(CommandManager.literal("stoprun")
-                                                        .requires(CommandManager
-                                                                        .requirePermissionLevel(
-                                                                                        CommandManager.GAMEMASTERS_CHECK))
-                                                        .executes(CommandRegistry::handleStopRun));
-
                                         // /runinfo - Display current run info
                                         dispatcher.register(CommandManager.literal("runinfo")
                                                         .executes(CommandRegistry::handleRunInfo));
 
-                                        // /chaos - Open the chaos settings GUI (difficulty, half heart, etc.)
+                                        // /chaos - Open the chaos settings GUI (difficulty, half
+                                        // heart, etc.)
                                         dispatcher.register(CommandManager.literal("chaos")
                                                         .executes(CommandRegistry::handleChaos));
 
-                                        // /settings - Open the info settings GUI (combat log, bug report, commands)
+                                        // /settings - Open the info settings GUI (combat log, bug
+                                        // report, commands)
                                         dispatcher.register(CommandManager.literal("settings")
                                                         .executes(CommandRegistry::handleSettings));
 
@@ -72,13 +66,15 @@ public class CommandRegistry {
                         return 0;
                 }
 
-                // Manhunt disabled (including pending): start immediately without opening the selector
+                // Manhunt disabled (including pending): start immediately without opening the
+                // selector
                 if (!Settings.getInstance().isManhuntModeForNextRun()) {
                         runManager.startRun();
                         return Command.SINGLE_SUCCESS;
                 }
 
-                // Manhunt enabled: open the Runner/Hunter selector; startRun is called from the GUI on confirm
+                // Manhunt enabled: open the Runner/Hunter selector; startRun is called from the GUI
+                // on confirm
                 if (context.getSource().getEntity() instanceof ServerPlayerEntity player) {
                         SpeedrunnerSelectorGui.open(player);
                         return Command.SINGLE_SUCCESS;

@@ -52,7 +52,7 @@ public class SharedJumpHandler {
             return;
         }
 
-        if (!runManager.isTemporaryWorld(player.getEntityWorld().getRegistryKey())) {
+        if (!runManager.isTemporaryWorld(player.getServerWorld().getRegistryKey())) {
             return;
         }
 
@@ -118,7 +118,7 @@ public class SharedJumpHandler {
             // Force all non-jumping players to jump
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 // Skip players not in the run
-                ServerWorld playerWorld = player.getEntityWorld();
+                ServerWorld playerWorld = player.getServerWorld();
                 if (playerWorld == null
                         || !runManager.isTemporaryWorld(playerWorld.getRegistryKey())) {
                     continue;

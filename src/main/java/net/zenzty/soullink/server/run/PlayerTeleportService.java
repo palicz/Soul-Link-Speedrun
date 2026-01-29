@@ -47,8 +47,8 @@ public class PlayerTeleportService {
 
         resetPlayer(player);
 
-        player.teleport(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
-                Set.of(), 0, 0, true);
+        player.teleport(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, 0.0f,
+                0.0f);
 
         if (player.networkHandler != null) {
             player.networkHandler.sendPacket(new ClearTitleS2CPacket(false));
@@ -74,18 +74,14 @@ public class PlayerTeleportService {
         if (overworld == null)
             return;
 
-        net.minecraft.world.WorldProperties.SpawnPoint spawn =
-                overworld.getLevelProperties().getSpawnPoint();
-
-        if (spawn == null || spawn.globalPos() == null) {
+        BlockPos spawnPos = overworld.getLevelProperties().getSpawnPos();
+        if (spawnPos == null) {
             SoulLink.LOGGER.error("Could not find vanilla spawn point!");
             return;
         }
 
-        BlockPos spawnPos = spawn.globalPos().pos();
-
         player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
-                Set.of(), player.getYaw(), player.getPitch(), true);
+                player.getYaw(), player.getPitch());
     }
 
     /**
@@ -118,7 +114,7 @@ public class PlayerTeleportService {
 
         // Apply half heart mode if enabled
         Settings settings = Settings.getInstance();
-        var maxHealthAttr = player.getAttributeInstance(EntityAttributes.MAX_HEALTH);
+        var maxHealthAttr = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
         if (maxHealthAttr != null) {
             if (settings.isHalfHeartMode()) {
                 maxHealthAttr.setBaseValue(1.0);

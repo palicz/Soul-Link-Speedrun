@@ -7,7 +7,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionTypes;
-import net.minecraft.world.rule.GameRules;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.server.settings.Settings;
 import xyz.nucleoid.fantasy.Fantasy;
@@ -57,7 +56,7 @@ public class WorldService {
         ServerWorld vanillaOverworld = server.getOverworld();
         RuntimeWorldConfig overworldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD).setDifficulty(serverDifficulty)
-                .setGameRule(GameRules.ADVANCE_TIME, true).setSeed(currentSeed)
+                .setShouldTickTime(true).setSeed(currentSeed)
                 .setGenerator(vanillaOverworld.getChunkManager().getChunkGenerator());
 
         overworldHandle = fantasy.openTemporaryWorld(overworldConfig);

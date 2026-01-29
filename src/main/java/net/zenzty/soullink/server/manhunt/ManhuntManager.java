@@ -185,7 +185,7 @@ public class ManhuntManager {
         }
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            String playerName = player.getGameProfile().name();
+            String playerName = player.getGameProfile().getName();
 
             // Remove from any existing team first
             Team currentTeam = scoreboard.getScoreHolderTeam(playerName);

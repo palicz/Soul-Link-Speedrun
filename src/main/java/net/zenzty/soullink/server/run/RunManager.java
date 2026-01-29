@@ -2,7 +2,7 @@ package net.zenzty.soullink.server.run;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
@@ -94,8 +94,8 @@ public class RunManager {
     public static Text formatClickable(String text, String command, String hoverText) {
         return Text.literal(text)
                 .setStyle(Style.EMPTY.withColor(Formatting.GREEN).withUnderline(true)
-                        .withClickEvent(new ClickEvent.RunCommand(command))
-                        .withHoverEvent(new HoverEvent.ShowText(
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
                                 Text.literal(hoverText).formatted(Formatting.GRAY))));
     }
 
@@ -139,7 +139,7 @@ public class RunManager {
      * Gets the ServerWorld for a player.
      */
     public static ServerWorld getPlayerWorld(ServerPlayerEntity player) {
-        return player.getEntityWorld();
+        return player.getServerWorld();
     }
 
     // ==================== RUN LIFECYCLE ====================
@@ -234,11 +234,14 @@ public class RunManager {
 
     /**
      * True when the timer should not overwrite the action bar for this player. In Manhunt, hunters
-     * who just switched compass target keep the "Now tracking: X" message visible for a few seconds.
+     * who just switched compass target keep the "Now tracking: X" message visible for a few
+     * seconds.
      */
     private boolean shouldSkipTimerActionBarFor(ServerPlayerEntity p) {
-        if (!Settings.getInstance().isManhuntMode()) return false;
-        if (!ManhuntManager.getInstance().isHunter(p)) return false;
+        if (!Settings.getInstance().isManhuntMode())
+            return false;
+        if (!ManhuntManager.getInstance().isHunter(p))
+            return false;
         return CompassTrackingHandler.shouldSuppressTimerActionBar(p.getUuid(), server.getTicks());
     }
 
@@ -284,7 +287,8 @@ public class RunManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             boolean syncToShared = !manhunt || manhuntManager.isSpeedrunner(player);
-            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService, syncToShared);
+            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService,
+                    syncToShared);
         }
 
         worldService.deleteOldWorlds();
@@ -316,10 +320,10 @@ public class RunManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (manhuntManager.isHunter(player)) {
-                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, durationTicks,
-                        0, false, false, true));
-                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, durationTicks,
-                        255, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS,
+                        durationTicks, 0, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS,
+                        durationTicks, 255, false, false, true));
             } else if (manhuntManager.isSpeedrunner(player)) {
                 player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, durationTicks,
                         0, false, false, true));
@@ -353,8 +357,9 @@ public class RunManager {
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (manhuntManager.isSpeedrunner(player)) {
                     player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
-                    player.networkHandler.sendPacket(new TitleS2CPacket(
-                            Text.literal("HUNTERS RELEASED!").formatted(Formatting.RED, Formatting.BOLD)));
+                    player.networkHandler
+                            .sendPacket(new TitleS2CPacket(Text.literal("HUNTERS RELEASED!")
+                                    .formatted(Formatting.RED, Formatting.BOLD)));
                 } else if (manhuntManager.isHunter(player)) {
                     player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
                     player.networkHandler.sendPacket(new TitleS2CPacket(
@@ -407,10 +412,12 @@ public class RunManager {
                     BlockPos spawnPos = spawnFinder.getSpawnPos();
                     if (spawnPos != null) {
                         player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY() + 10,
-                                spawnPos.getZ() + 0.5, Set.of(), 0, 0, true);
+                                spawnPos.getZ() + 0.5, 0.0f, 0.0f);
                     }
-                    player.sendMessage(formatMessage(
-                            "A run is in progress. You are spectating until it ends."), false);
+                    player.sendMessage(
+                            formatMessage(
+                                    "A run is in progress. You are spectating until it ends."),
+                            false);
                 } else {
                     teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos(),
                             timerService, true);
@@ -463,8 +470,9 @@ public class RunManager {
         Text restartMessage = Text.empty().append(getPrefix())
                 .append(Text.literal("All players are dead. Click ").formatted(Formatting.GRAY))
                 .append(Text.literal("here").setStyle(Style.EMPTY.withColor(Formatting.BLUE)
-                        .withUnderline(true).withClickEvent(new ClickEvent.RunCommand("/start"))
-                        .withHoverEvent(new HoverEvent.ShowText(
+                        .withUnderline(true)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/start"))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
                                 Text.literal("Start a new attempt").formatted(Formatting.GRAY)))))
                 .append(Text.literal(" or use ").formatted(Formatting.GRAY))
                 .append(Text.literal("/start").formatted(Formatting.GOLD))
@@ -511,8 +519,9 @@ public class RunManager {
         server.getPlayerManager().broadcast(victoryMessage, false);
 
         Text clickableHere = Text.literal("here").setStyle(Style.EMPTY.withColor(Formatting.AQUA)
-                .withUnderline(true).withClickEvent(new ClickEvent.RunCommand("/start"))
-                .withHoverEvent(new HoverEvent.ShowText(
+                .withUnderline(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/start"))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
                         Text.literal("Click to start a new run!").formatted(Formatting.GRAY))));
 
         Text restartMessage = Text.empty().append(getPrefix())
@@ -588,8 +597,8 @@ public class RunManager {
             }
 
             // Pass 1: Collect raids into a temporary list to avoid concurrent modification
-            List<Raid> raidsToClean =
-                    new ArrayList<>(((RaidManagerAccessor) raidManager).getRaids().values());
+            Map<Integer, Raid> raids = ((RaidManagerAccessor) raidManager).getRaids();
+            List<Raid> raidsToClean = new ArrayList<>(raids.values());
 
             // Pass 2: Invalidate each raid and clear its bossbar
             for (Raid raid : raidsToClean) {

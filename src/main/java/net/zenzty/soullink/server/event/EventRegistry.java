@@ -3,7 +3,6 @@ package net.zenzty.soullink.server.event;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -26,7 +25,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.WorldProperties;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
@@ -82,7 +80,8 @@ public class EventRegistry {
 
         // Server stopping - save settings, then cleanup worlds
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            SoulLink.LOGGER.info("Server stopping - saving settings and cleaning up temporary worlds");
+            SoulLink.LOGGER
+                    .info("Server stopping - saving settings and cleaning up temporary worlds");
             SettingsPersistence.save(server);
             delayedTasks.clear(); // Clear pending tasks
             RunManager.cleanup();
@@ -133,7 +132,7 @@ public class EventRegistry {
                     case GENERATING_WORLD:
                     case RUNNING:
                         // Run in progress - teleport player to it
-                        ServerWorld playerWorld = player.getEntityWorld();
+                        ServerWorld playerWorld = player.getServerWorld();
                         if (playerWorld == null) {
                             return;
                         }
@@ -226,8 +225,9 @@ public class EventRegistry {
                 .append(Text.literal("/start").formatted(Formatting.GOLD))
                 .append(Text.literal(" or ").formatted(Formatting.GRAY))
                 .append(Text.literal("click here").setStyle(Style.EMPTY.withColor(Formatting.BLUE)
-                        .withUnderline(true).withClickEvent(new ClickEvent.RunCommand("/start"))
-                        .withHoverEvent(new HoverEvent.ShowText(
+                        .withUnderline(true)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/start"))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
                                 Text.literal("Start a new run").formatted(Formatting.GRAY)))))
                 .append(Text.literal(" to begin.").formatted(Formatting.GRAY)), false);
 
@@ -238,17 +238,21 @@ public class EventRegistry {
         player.sendMessage(Text.empty().append(Text.literal("TIP: ").formatted(Formatting.YELLOW))
                 .append(Text.literal("Customize your next run with ").formatted(Formatting.GRAY))
                 .append(Text.literal("/chaos").setStyle(Style.EMPTY.withColor(Formatting.GOLD)
-                        .withClickEvent(new ClickEvent.RunCommand("/chaos"))
-                        .withHoverEvent(new HoverEvent.ShowText(
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/chaos"))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
                                 Text.literal("Open run options").formatted(Formatting.GRAY)))))
                 .append(Text.literal(".").formatted(Formatting.GRAY)), false);
 
-        player.sendMessage(Text.empty()
-                .append(Text.literal("Having troubles? ").formatted(Formatting.GRAY))
-                .append(Text.literal("/settings").setStyle(Style.EMPTY.withColor(Formatting.AQUA)
-                        .withClickEvent(new ClickEvent.RunCommand("/settings"))
-                        .withHoverEvent(new HoverEvent.ShowText(
-                                Text.literal("Open info settings").formatted(Formatting.GRAY))))),
+        player.sendMessage(
+                Text.empty().append(Text.literal("Having troubles? ").formatted(Formatting.GRAY))
+                        .append(Text.literal("/settings")
+                                .setStyle(Style.EMPTY.withColor(Formatting.AQUA)
+                                        .withClickEvent(new ClickEvent(
+                                                ClickEvent.Action.RUN_COMMAND, "/settings"))
+                                        .withHoverEvent(
+                                                new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                                        Text.literal("Open info settings")
+                                                                .formatted(Formatting.GRAY))))),
                 false);
 
     }
@@ -382,7 +386,7 @@ public class EventRegistry {
                         return;
                     }
 
-                    ServerWorld playerWorld = player.getEntityWorld();
+                    ServerWorld playerWorld = player.getServerWorld();
                     if (playerWorld == null) {
                         return;
                     }
@@ -444,7 +448,7 @@ public class EventRegistry {
 
         player.changeGameMode(GameMode.SPECTATOR);
 
-        ServerWorld world = player.getEntityWorld();
+        ServerWorld world = player.getServerWorld();
         double x = player.getX(), y = player.getY(), z = player.getZ();
 
         for (int i = 0; i < player.getInventory().size(); i++) {
@@ -485,24 +489,9 @@ public class EventRegistry {
             ServerWorld targetWorld = runManager.getTemporaryOverworld();
             BlockPos targetPos = runManager.getSpawnPos();
 
-            ServerPlayerEntity.Respawn resp = player.getRespawn();
-            if (resp != null) {
-                var data = resp.respawnData();
-                if (data != null && runManager.isTemporaryWorld(data.getDimension())) {
-                    ServerWorld sw = server.getWorld(data.getDimension());
-                    if (sw != null) {
-                        targetWorld = sw;
-                        targetPos = data.getPos();
-                    }
-                }
-            }
-
             if (targetWorld != null && targetPos != null) {
-                WorldProperties.SpawnPoint sp = WorldProperties.SpawnPoint
-                        .create(targetWorld.getRegistryKey(), targetPos, 0.0f, 0.0f);
-                player.setSpawnPoint(new ServerPlayerEntity.Respawn(sp, true), false);
                 player.teleport(targetWorld, targetPos.getX() + 0.5, targetPos.getY(),
-                        targetPos.getZ() + 0.5, Set.of(), 0.0f, 0.0f, true);
+                        targetPos.getZ() + 0.5, 0.0f, 0.0f);
             }
 
             player.setHealth(player.getMaxHealth());

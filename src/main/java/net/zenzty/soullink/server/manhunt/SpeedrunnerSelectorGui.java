@@ -112,8 +112,7 @@ public class SpeedrunnerSelectorGui {
 
         private ItemStack createPlayerHead(ServerPlayerEntity player) {
             ItemStack head = new ItemStack(Items.PLAYER_HEAD);
-            head.set(DataComponentTypes.PROFILE,
-                    ProfileComponent.ofStatic(player.getGameProfile()));
+            head.set(DataComponentTypes.PROFILE, new ProfileComponent(player.getGameProfile()));
 
             boolean isRunner = ManhuntManager.getInstance().isSpeedrunner(player.getUuid());
             String role = isRunner ? "RUNNER" : "HUNTER";
@@ -372,17 +371,17 @@ public class SpeedrunnerSelectorGui {
         }
 
         private void playClickSound() {
-            player.getEntityWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
+            player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.UI_BUTTON_CLICK.value(), SoundCategory.MASTER, 0.5f, 1.0f);
         }
 
         private void playConfirmSound() {
-            player.getEntityWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
+            player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.MASTER, 0.5f, 1.0f);
         }
 
         private void playErrorSound() {
-            player.getEntityWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
+            player.getServerWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.ENTITY_VILLAGER_NO, SoundCategory.MASTER, 0.5f, 1.0f);
         }
 

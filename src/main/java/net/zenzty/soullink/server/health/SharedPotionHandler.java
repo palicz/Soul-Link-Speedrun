@@ -139,7 +139,7 @@ public class SharedPotionHandler {
             return true;
         }
 
-        if (!runManager.isTemporaryWorld(player.getEntityWorld().getRegistryKey())) {
+        if (!runManager.isTemporaryWorld(player.getServerWorld().getRegistryKey())) {
             return true;
         }
 
@@ -253,8 +253,8 @@ public class SharedPotionHandler {
                     // Instant Damage deals 6 HP per level (3 hearts)
                     float damageAmount = (float) (6 << amplifier);
                     // Use magic damage source for instant damage
-                    ServerWorld world = player.getEntityWorld();
-                    player.damage(world, world.getDamageSources().magic(), damageAmount);
+                    ServerWorld world = player.getServerWorld();
+                    player.damage(world.getDamageSources().magic(), damageAmount);
                     SoulLink.LOGGER.debug("Applied instant damage ({} HP) to closest player: {}",
                             damageAmount, player.getName().getString());
                 }
@@ -318,7 +318,7 @@ public class SharedPotionHandler {
                 if (otherPlayer == sourcePlayer)
                     continue;
 
-                ServerWorld otherWorld = otherPlayer.getEntityWorld();
+                ServerWorld otherWorld = otherPlayer.getServerWorld();
                 if (!runManager.isTemporaryWorld(otherWorld.getRegistryKey()))
                     continue;
 

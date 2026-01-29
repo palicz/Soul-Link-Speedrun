@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.FlintAndSteelItem;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -62,7 +63,10 @@ public abstract class FlintAndSteelMixin {
 
             // Damage the flint and steel
             if (context.getPlayer() instanceof ServerPlayerEntity player) {
-                context.getStack().damage(1, player, context.getHand());
+                EquipmentSlot slot = context.getHand() == net.minecraft.util.Hand.MAIN_HAND
+                        ? EquipmentSlot.MAINHAND
+                        : EquipmentSlot.OFFHAND;
+                context.getStack().damage(1, player, slot);
             }
 
             // Play sound

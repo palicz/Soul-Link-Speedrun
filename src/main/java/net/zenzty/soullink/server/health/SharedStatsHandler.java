@@ -120,11 +120,10 @@ public class SharedStatsHandler {
     }
 
     /**
-     * Gets the ServerWorld for a player. In Yarn 1.21.11, ServerPlayerEntity.getEntityWorld()
-     * returns ServerWorld directly.
+     * Gets the ServerWorld for a player. Uses getServerWorld() (Yarn 1.21.1+).
      */
     private static ServerWorld getPlayerWorld(ServerPlayerEntity player) {
-        return player.getEntityWorld();
+        return player.getServerWorld();
     }
 
     /**
@@ -222,7 +221,7 @@ public class SharedStatsHandler {
 
                     // Apply damage using the world-aware damage method
                     // The isSyncing flag prevents onPlayerHealthChanged from recursing
-                    player.damage(otherWorld, syncDamage, syncedDamageAmount);
+                    player.damage(syncDamage, syncedDamageAmount);
 
                     // Safety check: if player "died" due to local damage but shared health remains,
                     // restore them
@@ -698,6 +697,14 @@ public class SharedStatsHandler {
 
         if (playerCount == 0)
             return;
+
+        // Keep sharedHunger in sync with the drain player's current value. Otherwise when we
+        // later apply accumulated drain we subtract from a stale value and then set everyone to
+        // that, causing the drain player's hunger to "pop back up" (e.g. they're at 18 but we
+        // set everyone to 19 because sharedHunger was still 20).
+        sharedHunger = MathHelper.clamp(drainPlayer.getHungerManager().getFoodLevel(), 0, 20);
+        sharedSaturation =
+                MathHelper.clamp(drainPlayer.getHungerManager().getSaturationLevel(), 0.0f, 20.0f);
 
         // Divide the drain by player count and accumulate
         float normalizedFoodDrain = (float) foodDrain / playerCount;

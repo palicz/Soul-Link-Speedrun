@@ -347,8 +347,10 @@ public class SettingsInfoGui {
                                                         .setStyle(Style.EMPTY.withItalic(false)
                                                                         .withFormatting(Formatting.DARK_AQUA,
                                                                                         Formatting.UNDERLINE)
-                                                                        .withClickEvent(new ClickEvent.OpenUrl(
-                                                                                        URI.create(discordUrl)))),
+                                                                        .withClickEvent(new ClickEvent(
+                                                                                        ClickEvent.Action.OPEN_URL,
+                                                                                        URI.create(discordUrl)
+                                                                                                        .toString()))),
                                                         false);
                                         playClickSound();
                                 }
@@ -400,7 +402,8 @@ public class SettingsInfoGui {
                                                                 settingsInventory
                                                                                 .isPendingDamageLog());
                                                 confirmed = true;
-                                                MinecraftServer server = RunManager.getInstance().getServer();
+                                                MinecraftServer server = RunManager.getInstance()
+                                                                .getServer();
                                                 if (server != null) {
                                                         SettingsPersistence.save(server);
                                                 }
