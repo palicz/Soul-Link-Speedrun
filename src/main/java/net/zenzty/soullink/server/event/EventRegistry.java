@@ -1,9 +1,11 @@
 package net.zenzty.soullink.server.event;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -68,6 +70,7 @@ public class EventRegistry {
     private static final List<DelayedTask> delayedTasks = new ArrayList<>();
     private static final List<EntityType<? extends HostileEntity>> EXTRA_HOSTILE_SPAWN_POOL =
             List.of(EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SPIDER, EntityType.CREEPER);
+    private static final Set<UUID> extraSpawnedHostiles = new HashSet<>();
 
     /**
      * Registers all events for the SoulLink mod.
@@ -99,6 +102,7 @@ public class EventRegistry {
                     .info("Server stopping - saving settings and cleaning up temporary worlds");
             SettingsPersistence.save(server);
             delayedTasks.clear(); // Clear pending tasks
+            extraSpawnedHostiles.clear();
             RunManager.cleanup();
         });
     }
@@ -290,6 +294,7 @@ public class EventRegistry {
 
             if (runManager != null && runManager.isRunActive()) {
                 trySpawnExtraHostiles(server, runManager);
+                despawnDistantHostiles(server, runManager);
             }
 
             SharedJumpHandler.processJumpsAtTickEnd(server);
@@ -355,6 +360,66 @@ public class EventRegistry {
         HostileEntity entity = type.create(world, null, topPos, SpawnReason.NATURAL, true, true);
         if (entity != null) {
             world.spawnEntity(entity);
+            extraSpawnedHostiles.add(entity.getUuid());
+        }
+    }
+
+    private static void despawnDistantHostiles(MinecraftServer server, RunManager runManager) {
+        // Check every second (20 ticks) to avoid performance impact
+        if (server.getTicks() % 20 != 0) {
+            return;
+        }
+
+        RunDifficulty difficulty = Settings.getInstance().getDifficulty();
+        if (difficulty != RunDifficulty.HARD && difficulty != RunDifficulty.EXTREME) {
+            return;
+        }
+
+        double despawnRadiusSq = SoulLinkConstants.EXTRA_HOSTILE_DESPAWN_RADIUS
+                * SoulLinkConstants.EXTRA_HOSTILE_DESPAWN_RADIUS;
+
+        Iterator<UUID> it = extraSpawnedHostiles.iterator();
+        while (it.hasNext()) {
+            UUID uuid = it.next();
+
+            HostileEntity hostile = null;
+            ServerWorld hostileWorld = null;
+            for (ServerWorld world : server.getWorlds()) {
+                if (!runManager.isTemporaryWorld(world.getRegistryKey())) {
+                    continue;
+                }
+                var e = world.getEntity(uuid);
+                if (e instanceof HostileEntity h && h.isAlive()) {
+                    hostile = h;
+                    hostileWorld = world;
+                    break;
+                }
+            }
+
+            if (hostile == null || hostileWorld == null) {
+                it.remove();
+                continue;
+            }
+
+            // Despawn if > radius from every non-creative/spectator player in this world (2D XZ).
+            boolean nearAnyPlayer = false;
+            for (ServerPlayerEntity player : hostileWorld.getPlayers()) {
+                if (player.isSpectator() || player.isCreative()) {
+                    continue;
+                }
+                double dx = hostile.getX() - player.getX();
+                double dz = hostile.getZ() - player.getZ();
+                double distSq = dx * dx + dz * dz;
+                if (distSq <= despawnRadiusSq) {
+                    nearAnyPlayer = true;
+                    break;
+                }
+            }
+
+            if (!nearAnyPlayer) {
+                hostile.remove(net.minecraft.entity.Entity.RemovalReason.DISCARDED);
+                it.remove();
+            }
         }
     }
 

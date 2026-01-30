@@ -24,7 +24,8 @@ public final class SoulLinkConstants {
     public static final int EXTRA_HOSTILE_SPAWN_PER_PLAYER = 4;
     public static final double EXTRA_HOSTILE_SPAWN_MIN_RADIUS = 16.0;
     public static final double EXTRA_HOSTILE_SPAWN_RADIUS = 32.0;
-    public static final int EXTRA_HOSTILE_SPAWN_MAX_NEARBY = 8;
+    public static final int EXTRA_HOSTILE_SPAWN_MAX_NEARBY = 32;
+    public static final double EXTRA_HOSTILE_DESPAWN_RADIUS = 64.0;
 
     private SoulLinkConstants() {
         // Prevent instantiation
