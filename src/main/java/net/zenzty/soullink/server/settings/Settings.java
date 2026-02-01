@@ -21,6 +21,7 @@ public class Settings {
     private boolean damageLogEnabled = true; // Combat log - can be toggled immediately
     private boolean swarmIntelligence = true;
     private boolean staticDischarge = true;
+    private boolean teleportSwap = true;
 
     // Pending settings to be applied on next run
     private SettingsSnapshot pendingSnapshot = null;
@@ -135,6 +136,16 @@ public class Settings {
 
     public void setStaticDischargeEnabled(boolean staticDischarge) {
         this.staticDischarge = staticDischarge;
+    }
+
+    // ==================== TELEPORT SWAP ====================
+
+    public boolean isTeleportSwapEnabled() {
+        return teleportSwap;
+    }
+
+    public void setTeleportSwapEnabled(boolean teleportSwap) {
+        this.teleportSwap = teleportSwap;
     }
 
     // ==================== UTILITY ====================

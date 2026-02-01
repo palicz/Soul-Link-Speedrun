@@ -26,6 +26,17 @@ public final class SoulLinkConstants {
     public static final double EXTRA_HOSTILE_SPAWN_RADIUS = 32.0;
     public static final int EXTRA_HOSTILE_SPAWN_MAX_NEARBY = 32;
     public static final double EXTRA_HOSTILE_DESPAWN_RADIUS = 64.0;
+    public static final double ENDERMAN_TELEPORT_SWAP_RANGE = 16.0;
+    public static final double ENDERMAN_TELEPORT_SWAP_SEARCH_RANGE = 32.0;
+    public static final int ENDERMAN_TELEPORT_SWAP_COOLDOWN_TICKS = 100; // 5 seconds
+
+    // Enderman TNT revenge: when a player attacks an Enderman, it teleports away, gets TNT,
+    // teleports back, places lit TNT, then teleports away again.
+    public static final int ENDERMAN_TNT_REVENGE_GIVE_TNT_TICKS = 40; // 2 sec after damage
+    public static final int ENDERMAN_TNT_REVENGE_PLACE_TNT_TICKS = 60; // 3 sec (place + light)
+    public static final double ENDERMAN_TNT_REVENGE_TELEPORT_BACK_RANGE = 4.0; // near player
+    public static final double ENDERMAN_TNT_REVENGE_TELEPORT_AWAY_RANGE = 32; // away
+    public static final int ENDERMAN_TNT_REVENGE_FUSE_TICKS = 20; // 1 second (default TNT is 80)
 
     private SoulLinkConstants() {
         // Prevent instantiation

@@ -12,16 +12,17 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.SpiderEntity;
 import net.minecraft.entity.mob.WitherSkeletonEntity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
@@ -37,8 +38,8 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.WorldProperties;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.WorldProperties;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.common.SoulLinkConstants;
 import net.zenzty.soullink.server.health.SharedJumpHandler;
@@ -325,8 +326,8 @@ public class EventRegistry {
 
             Box searchBox =
                     player.getBoundingBox().expand(SoulLinkConstants.EXTRA_HOSTILE_SPAWN_RADIUS);
-            int nearbyHostiles = world.getEntitiesByClass(HostileEntity.class, searchBox,
-                    e -> e.isAlive()).size();
+            int nearbyHostiles = world
+                    .getEntitiesByClass(HostileEntity.class, searchBox, e -> e.isAlive()).size();
             if (nearbyHostiles >= SoulLinkConstants.EXTRA_HOSTILE_SPAWN_MAX_NEARBY) {
                 continue;
             }
@@ -340,7 +341,8 @@ public class EventRegistry {
         }
     }
 
-    private static void spawnOneExtraHostileNearPlayer(ServerWorld world, ServerPlayerEntity player) {
+    private static void spawnOneExtraHostileNearPlayer(ServerWorld world,
+            ServerPlayerEntity player) {
         var random = world.getRandom();
 
         double minRadius = Math.max(0.0d, SoulLinkConstants.EXTRA_HOSTILE_SPAWN_MIN_RADIUS);
@@ -350,10 +352,9 @@ public class EventRegistry {
         double offsetX = Math.cos(angle) * radius;
         double offsetZ = Math.sin(angle) * radius;
 
-        BlockPos samplePos = BlockPos.ofFloored(player.getX() + offsetX, player.getY(),
-                player.getZ() + offsetZ);
-        BlockPos topPos =
-                world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, samplePos);
+        BlockPos samplePos =
+                BlockPos.ofFloored(player.getX() + offsetX, player.getY(), player.getZ() + offsetZ);
+        BlockPos topPos = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, samplePos);
 
         EntityType<? extends HostileEntity> type =
                 EXTRA_HOSTILE_SPAWN_POOL.get(random.nextInt(EXTRA_HOSTILE_SPAWN_POOL.size()));
@@ -491,9 +492,18 @@ public class EventRegistry {
             return true;
         });
 
-        // After damage is applied
+        // After damage is applied (player took damage - sync, death, cobweb, etc.)
         ServerLivingEntityEvents.AFTER_DAMAGE
                 .register((entity, source, baseDamageTaken, damageTaken, blocked) -> {
+                    // Enderman TNT revenge: when a player attacks an Enderman, it teleports away,
+                    // gets TNT, teleports back, places lit TNT, then teleports away again.
+                    if (entity instanceof EndermanEntity enderman
+                            && source.getAttacker() instanceof ServerPlayerEntity attacker
+                            && enderman.getEntityWorld() instanceof ServerWorld world) {
+                        EndermanTntRevengeHandler.onEndermanDamagedByPlayer(enderman, attacker,
+                                world);
+                    }
+
                     if (!(entity instanceof ServerPlayerEntity player)) {
                         return;
                     }
