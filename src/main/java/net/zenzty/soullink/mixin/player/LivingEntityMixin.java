@@ -5,14 +5,17 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
+import net.zenzty.soullink.server.inventory.SharedInventoryHandler;
 import net.zenzty.soullink.server.run.RunManager;
 
 /**
- * Mixin for LivingEntity to intercept healing for ServerPlayerEntity instances.
+ * Mixin for LivingEntity to intercept healing and armor equip for ServerPlayerEntity.
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
@@ -70,6 +73,23 @@ public abstract class LivingEntityMixin {
             // Larger heals (potions, golden apples) sync normally
             SharedStatsHandler.onPlayerHealed(player, player.getHealth());
         }
+    }
+
+    /**
+     * Intercepts armor equip via right-click outside inventory to sync to all players.
+     */
+    @Inject(method = "equipStack", at = @At("RETURN"))
+    private void onEquipStack(EquipmentSlot slot, ItemStack stack, CallbackInfo ci) {
+        if (!((Object) this instanceof ServerPlayerEntity player)) {
+            return;
+        }
+        if (SharedInventoryHandler.isSyncing()) {
+            return;
+        }
+        if (player.isRemoved() || !player.isAlive()) {
+            return;
+        }
+        SharedInventoryHandler.syncFromPlayerToAll(player);
     }
 }
 

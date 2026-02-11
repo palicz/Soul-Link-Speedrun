@@ -102,6 +102,9 @@ public final class SettingsPersistence {
         if (data.manhuntMode != null) {
             s.setManhuntMode(data.manhuntMode);
         }
+        if (data.syncedInventory != null) {
+            s.setSyncedInventory(data.syncedInventory);
+        }
     }
 
     private static SettingsData fromSettings() {
@@ -119,6 +122,7 @@ public final class SettingsPersistence {
         data.sharedPotions = chaos.sharedPotions();
         data.sharedJumping = chaos.sharedJumping();
         data.manhuntMode = chaos.manhuntMode();
+        data.syncedInventory = chaos.syncedInventory();
         return data;
     }
 
@@ -134,5 +138,6 @@ public final class SettingsPersistence {
         Boolean sharedPotions;
         Boolean sharedJumping;
         Boolean manhuntMode;
+        Boolean syncedInventory;
     }
 }

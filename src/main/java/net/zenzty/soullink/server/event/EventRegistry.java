@@ -64,7 +64,17 @@ public class EventRegistry {
         registerConnectionEvents();
         registerTickEvents();
         registerEntityEvents();
+        registerUseEvents();
         CompassTrackingHandler.register();
+    }
+
+    /**
+     * Block/item use events. Delayed sync (UseBlockCallback/UseItemCallback + scheduleDelayed) was
+     * causing "invalid player data" when the task ran during disconnect/save. Disabled; block
+     * placement sync is best fixed by hooking the exact place vanilla consumes the item.
+     */
+    private static void registerUseEvents() {
+        // No delayed sync - causes invalid player data when player disconnects or saves.
     }
 
     /**
@@ -82,7 +92,8 @@ public class EventRegistry {
 
         // Server stopping - save settings, then cleanup worlds
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            SoulLink.LOGGER.info("Server stopping - saving settings and cleaning up temporary worlds");
+            SoulLink.LOGGER
+                    .info("Server stopping - saving settings and cleaning up temporary worlds");
             SettingsPersistence.save(server);
             delayedTasks.clear(); // Clear pending tasks
             RunManager.cleanup();

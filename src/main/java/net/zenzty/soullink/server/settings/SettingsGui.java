@@ -38,6 +38,7 @@ public class SettingsGui {
         private static final int SHARED_POTIONS_SLOT = 14;
         private static final int SHARED_JUMPING_SLOT = 16;
         private static final int MANHUNT_SLOT = 28; // Row 3, col 1 (one row below empty row 2)
+        private static final int SYNCED_INVENTORY_SLOT = 30; // Row 3, next to Manhunt
         private static final int CONFIRM_SLOT = 49; // Bottom center
 
         // Size of double chest
@@ -63,7 +64,8 @@ public class SettingsGui {
                         }
                         originalSnapshot = new Settings.SettingsSnapshot(worldDifficulty,
                                         settings.isHalfHeartMode(), settings.isSharedPotions(),
-                                        settings.isSharedJumping(), settings.isManhuntMode());
+                                        settings.isSharedJumping(), settings.isManhuntMode(),
+                                        settings.isSyncedInventory());
                 }
 
                 // Create inventory with all slots
@@ -99,6 +101,7 @@ public class SettingsGui {
                 private boolean pendingSharedPotions;
                 private boolean pendingSharedJumping;
                 private boolean pendingManhunt;
+                private boolean pendingSyncedInventory;
                 private final Settings.SettingsSnapshot original;
 
                 public SettingsInventory(Settings.SettingsSnapshot original) {
@@ -109,6 +112,7 @@ public class SettingsGui {
                         this.pendingSharedPotions = original.sharedPotions();
                         this.pendingSharedJumping = original.sharedJumping();
                         this.pendingManhunt = original.manhuntMode();
+                        this.pendingSyncedInventory = original.syncedInventory();
 
                         populateItems();
                 }
@@ -138,6 +142,9 @@ public class SettingsGui {
 
                         // Add manhunt mode setting
                         setStack(MANHUNT_SLOT, createManhuntItem());
+
+                        // Add synced inventory setting
+                        setStack(SYNCED_INVENTORY_SLOT, createSyncedInventoryItem());
 
                         // Add confirm button
                         setStack(CONFIRM_SLOT, createConfirmItem());
@@ -325,6 +332,40 @@ public class SettingsGui {
                         return item;
                 }
 
+                private ItemStack createSyncedInventoryItem() {
+                        ItemStack item = new ItemStack(
+                                        pendingSyncedInventory ? Items.COPPER_CHEST : Items.CHEST);
+                        item.set(DataComponentTypes.CUSTOM_NAME, createItemName("Synced Inventory",
+                                        Formatting.DARK_AQUA, Formatting.BOLD));
+                        LoreComponent lore = new LoreComponent(List.of(
+                                        Text.literal("Status: ").setStyle(Style.EMPTY
+                                                        .withItalic(false)
+                                                        .withFormatting(Formatting.GRAY))
+                                                        .append(pendingSyncedInventory ? Text
+                                                                        .literal("ENABLED")
+                                                                        .setStyle(Style.EMPTY
+                                                                                        .withItalic(false)
+                                                                                        .withFormatting(Formatting.GREEN))
+                                                                        : Text.literal("DISABLED")
+                                                                                        .setStyle(Style.EMPTY
+                                                                                                        .withItalic(false)
+                                                                                                        .withFormatting(Formatting.RED))),
+                                        Text.empty(),
+                                        Text.literal("All players share the same inventory")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                                        .withFormatting(Formatting.DARK_GRAY)),
+                                        Text.literal("(main, hotbar, armor, offhand).")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                                        .withFormatting(Formatting.DARK_GRAY)),
+                                        Text.empty(),
+                                        Text.literal("Click to toggle").setStyle(Style.EMPTY
+                                                        .withItalic(false)
+                                                        .withFormatting(Formatting.DARK_GRAY))));
+                        item.set(DataComponentTypes.LORE, lore);
+
+                        return item;
+                }
+
                 private ItemStack createConfirmItem() {
                         ItemStack item = new ItemStack(Items.EMERALD);
                         item.set(DataComponentTypes.CUSTOM_NAME, createItemName("✓ Confirm",
@@ -399,6 +440,18 @@ public class SettingsGui {
                                                                                         false)
                                                                                         .withFormatting(Formatting.RED))));
 
+                        // Synced Inventory
+                        loreLines.add(Text.literal("  • Synced Inventory: ")
+                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                        .withFormatting(Formatting.GRAY))
+                                        .append(pendingSyncedInventory ? Text.literal("Enabled")
+                                                        .setStyle(Style.EMPTY.withItalic(false)
+                                                                        .withFormatting(Formatting.GREEN))
+                                                        : Text.literal("Disabled").setStyle(
+                                                                        Style.EMPTY.withItalic(
+                                                                                        false)
+                                                                                        .withFormatting(Formatting.RED))));
+
                         loreLines.add(Text.empty());
                         loreLines.add(Text.literal("⚠ Settings apply next run!")
                                         .setStyle(Style.EMPTY.withItalic(false)
@@ -418,12 +471,14 @@ public class SettingsGui {
                                         || pendingHalfHeart != original.halfHeartMode()
                                         || pendingSharedPotions != original.sharedPotions()
                                         || pendingSharedJumping != original.sharedJumping()
-                                        || pendingManhunt != original.manhuntMode();
+                                        || pendingManhunt != original.manhuntMode()
+                                        || pendingSyncedInventory != original.syncedInventory();
                 }
 
                 public Settings.SettingsSnapshot getPendingSnapshot() {
                         return new Settings.SettingsSnapshot(pendingDifficulty, pendingHalfHeart,
-                                        pendingSharedPotions, pendingSharedJumping, pendingManhunt);
+                                        pendingSharedPotions, pendingSharedJumping, pendingManhunt,
+                                        pendingSyncedInventory);
                 }
 
                 public Settings.SettingsSnapshot getOriginal() {
@@ -450,6 +505,10 @@ public class SettingsGui {
                         return pendingManhunt;
                 }
 
+                public boolean isPendingSyncedInventory() {
+                        return pendingSyncedInventory;
+                }
+
                 // Setters for pending values
                 public void cycleDifficulty() {
                         pendingDifficulty = switch (pendingDifficulty) {
@@ -473,6 +532,10 @@ public class SettingsGui {
 
                 public void toggleManhunt() {
                         pendingManhunt = !pendingManhunt;
+                }
+
+                public void toggleSyncedInventory() {
+                        pendingSyncedInventory = !pendingSyncedInventory;
                 }
         }
 
@@ -620,6 +683,11 @@ public class SettingsGui {
                                         settingsInventory.populateItems();
                                         playClickSound();
                                 }
+                                case SYNCED_INVENTORY_SLOT -> {
+                                        settingsInventory.toggleSyncedInventory();
+                                        settingsInventory.populateItems();
+                                        playClickSound();
+                                }
                                 case CONFIRM_SLOT -> {
                                         if (settingsInventory.hasChanges()) {
                                                 // Apply the changes
@@ -760,6 +828,28 @@ public class SettingsGui {
                                 String newVal = settingsInventory.isPendingManhunt() ? "ON" : "OFF";
                                 Text changeMsg = Text.empty().append(RunManager.getPrefix())
                                                 .append(Text.literal("  • Manhunt Mode: ")
+                                                                .setStyle(Style.EMPTY
+                                                                                .withItalic(false)
+                                                                                .withFormatting(Formatting.GRAY)))
+                                                .append(Text.literal(oldVal).setStyle(Style.EMPTY
+                                                                .withItalic(false)
+                                                                .withFormatting(Formatting.RED)))
+                                                .append(Text.literal(" → ").setStyle(Style.EMPTY
+                                                                .withItalic(false)
+                                                                .withFormatting(Formatting.DARK_GRAY)))
+                                                .append(Text.literal(newVal).setStyle(Style.EMPTY
+                                                                .withItalic(false)
+                                                                .withFormatting(Formatting.GREEN)));
+                                server.getPlayerManager().broadcast(changeMsg, false);
+                        }
+
+                        if (settingsInventory.isPendingSyncedInventory() != orig
+                                        .syncedInventory()) {
+                                String oldVal = orig.syncedInventory() ? "ON" : "OFF";
+                                String newVal = settingsInventory.isPendingSyncedInventory() ? "ON"
+                                                : "OFF";
+                                Text changeMsg = Text.empty().append(RunManager.getPrefix())
+                                                .append(Text.literal("  • Synced Inventory: ")
                                                                 .setStyle(Style.EMPTY
                                                                                 .withItalic(false)
                                                                                 .withFormatting(Formatting.GRAY)))

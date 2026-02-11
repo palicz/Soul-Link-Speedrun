@@ -19,6 +19,7 @@ public class Settings {
     private boolean sharedPotions = false;
     private boolean sharedJumping = false;
     private boolean manhuntMode = false;
+    private boolean syncedInventory = false;
     private boolean damageLogEnabled = true; // Combat log - can be toggled immediately
 
     // Pending settings to be applied on next run
@@ -107,6 +108,20 @@ public class Settings {
         this.manhuntMode = manhuntMode;
     }
 
+    // ==================== SYNCED INVENTORY ====================
+
+    /**
+     * Whether Synced Inventory mode is enabled. When true, all players in the run share the same
+     * inventory (main, hotbar, armor, offhand); changes by one player appear for everyone.
+     */
+    public boolean isSyncedInventory() {
+        return syncedInventory;
+    }
+
+    public void setSyncedInventory(boolean syncedInventory) {
+        this.syncedInventory = syncedInventory;
+    }
+
     // ==================== DAMAGE LOG ====================
 
     public boolean isDamageLogEnabled() {
@@ -133,7 +148,7 @@ public class Settings {
      */
     public SettingsSnapshot createSnapshot() {
         return new SettingsSnapshot(difficulty, halfHeartMode, sharedPotions, sharedJumping,
-                manhuntMode);
+                manhuntMode, syncedInventory);
     }
 
     /**
@@ -177,10 +192,12 @@ public class Settings {
         this.sharedPotions = snapshot.sharedPotions();
         this.sharedJumping = snapshot.sharedJumping();
         this.manhuntMode = snapshot.manhuntMode();
+        this.syncedInventory = snapshot.syncedInventory();
 
         SoulLink.LOGGER.info(
-                "Settings applied: Difficulty={}, HalfHeart={}, SharedPotions={}, SharedJumping={}, Manhunt={}",
-                difficulty, halfHeartMode, sharedPotions, sharedJumping, manhuntMode);
+                "Settings applied: Difficulty={}, HalfHeart={}, SharedPotions={}, SharedJumping={}, Manhunt={}, SyncedInventory={}",
+                difficulty, halfHeartMode, sharedPotions, sharedJumping, manhuntMode,
+                syncedInventory);
     }
 
     /**
@@ -198,6 +215,7 @@ public class Settings {
      * Immutable snapshot of settings for comparison and temporary editing.
      */
     public record SettingsSnapshot(Difficulty difficulty, boolean halfHeartMode,
-            boolean sharedPotions, boolean sharedJumping, boolean manhuntMode) {
+            boolean sharedPotions, boolean sharedJumping, boolean manhuntMode,
+            boolean syncedInventory) {
     }
 }

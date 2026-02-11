@@ -181,6 +181,11 @@ public class RunManager {
         // Reset shared stats
         SharedStatsHandler.reset();
 
+        // Reset shared inventory when synced inventory mode is enabled
+        if (Settings.getInstance().isSyncedInventory()) {
+            net.zenzty.soullink.server.inventory.SharedInventoryHandler.reset();
+        }
+
         // Reset End initialization flag
         endInitialized = false;
 
@@ -234,11 +239,14 @@ public class RunManager {
 
     /**
      * True when the timer should not overwrite the action bar for this player. In Manhunt, hunters
-     * who just switched compass target keep the "Now tracking: X" message visible for a few seconds.
+     * who just switched compass target keep the "Now tracking: X" message visible for a few
+     * seconds.
      */
     private boolean shouldSkipTimerActionBarFor(ServerPlayerEntity p) {
-        if (!Settings.getInstance().isManhuntMode()) return false;
-        if (!ManhuntManager.getInstance().isHunter(p)) return false;
+        if (!Settings.getInstance().isManhuntMode())
+            return false;
+        if (!ManhuntManager.getInstance().isHunter(p))
+            return false;
         return CompassTrackingHandler.shouldSuppressTimerActionBar(p.getUuid(), server.getTicks());
     }
 
@@ -284,7 +292,8 @@ public class RunManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             boolean syncToShared = !manhunt || manhuntManager.isSpeedrunner(player);
-            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService, syncToShared);
+            teleportService.teleportToSpawn(player, overworld, spawnPos, timerService,
+                    syncToShared);
         }
 
         worldService.deleteOldWorlds();
@@ -316,10 +325,10 @@ public class RunManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (manhuntManager.isHunter(player)) {
-                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, durationTicks,
-                        0, false, false, true));
-                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, durationTicks,
-                        255, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS,
+                        durationTicks, 0, false, false, true));
+                player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS,
+                        durationTicks, 255, false, false, true));
             } else if (manhuntManager.isSpeedrunner(player)) {
                 player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, durationTicks,
                         0, false, false, true));
@@ -353,8 +362,9 @@ public class RunManager {
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 if (manhuntManager.isSpeedrunner(player)) {
                     player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
-                    player.networkHandler.sendPacket(new TitleS2CPacket(
-                            Text.literal("HUNTERS RELEASED!").formatted(Formatting.RED, Formatting.BOLD)));
+                    player.networkHandler
+                            .sendPacket(new TitleS2CPacket(Text.literal("HUNTERS RELEASED!")
+                                    .formatted(Formatting.RED, Formatting.BOLD)));
                 } else if (manhuntManager.isHunter(player)) {
                     player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 20));
                     player.networkHandler.sendPacket(new TitleS2CPacket(
@@ -409,11 +419,17 @@ public class RunManager {
                         player.teleport(overworld, spawnPos.getX() + 0.5, spawnPos.getY() + 10,
                                 spawnPos.getZ() + 0.5, Set.of(), 0, 0, true);
                     }
-                    player.sendMessage(formatMessage(
-                            "A run is in progress. You are spectating until it ends."), false);
+                    player.sendMessage(
+                            formatMessage(
+                                    "A run is in progress. You are spectating until it ends."),
+                            false);
                 } else {
                     teleportService.teleportToSpawn(player, overworld, spawnFinder.getSpawnPos(),
                             timerService, true);
+                    if (Settings.getInstance().isSyncedInventory()) {
+                        net.zenzty.soullink.server.inventory.SharedInventoryHandler
+                                .syncPlayerToShared(player);
+                    }
                     player.sendMessage(formatMessageWithPlayer("", player.getName().getString(),
                             " joined. Stats synced."), false);
                 }
@@ -524,6 +540,14 @@ public class RunManager {
     }
 
     // ==================== HELPER METHODS ====================
+
+    /**
+     * Checks if a player is in the active run (in a temporary world). Public for use by
+     * SharedInventoryHandler and other handlers.
+     */
+    public boolean isPlayerInRun(ServerPlayerEntity player) {
+        return isInRun(player);
+    }
 
     /**
      * Checks if a player is in the active run (in a temporary world).
