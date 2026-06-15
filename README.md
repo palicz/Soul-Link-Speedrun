@@ -13,10 +13,12 @@
   <a href="https://www.curseforge.com/minecraft/mc-mods/soul-link-speedrun">
     <img src="https://cdn.modrinth.com/data/cached_images/59902fedac100ce3cc3249dc677e76281aa597d0.png" alt="curseforge_link">
   </a>
+  <a href="https://ko-fi.com/soullinkspeedrun">
+    <img src="https://cdn.modrinth.com/data/cached_images/78f96d4507ba7381ec6452674dcae44b213fa242.png" alt="kofi-link">
+  </a>
 </p>
 
 ![divider](https://cdn.modrinth.com/data/cached_images/f1555fa7709bdbd4776c2bf3fa8fd763f659e052.png)
-
 
 ![about](https://cdn.modrinth.com/data/cached_images/9872283263bf494fa11d3c3b54326d1b5f64c0ba_0.webp)
 
@@ -48,12 +50,16 @@ _**Player A** eats and **Player B**'s hunger reduces too_
 </div>
 
 ### Customize Your Challenge (New!)
-Tailor the difficulty to your team using the new **Settings GUI**. Toggle specific mechanics to create the ultimate speedrun gauntlet:
+Tailor the difficulty to your team using the new **Chaos Mode GUI**. Toggle specific mechanics to create the ultimate speedrun gauntlet:
 
 * **Shared Potions:** If one player drinks a Speed potion, the whole team speeds up. But be careful—negative effects like Poison are shared too!
 * **Shared Jumping:** Coordinate your movement! When enabled, jumps are synchronized across all players.
 * **Half-Heart Mode:** For the absolute pros. The team's max health is capped at 0.5 hearts. One hit ends the run.
-* **Difficulty:** Adjust the world difficulty directly within the settings menu.
+* **Difficulty:** Adjust the world difficulty directly within the chaos menu.
+* **Manhunt mode:** Gamemode Runners share health and stats (Soul Link) while Hunters use vanilla mechanics and get tracking compasses to follow Runners. Role selection via GUI before starting a run.
+* **Synced Inventory:** Every player in the run shares the exact same inventory. If one person picks up an item, puts on armor, or uses a potion, it happens for everyone simultaneously across their main inventory, hotbar, and equipment slots.
+
+![chaos_menu](https://cdn.modrinth.com/data/cached_images/ff8f1fc73b89fd5ea1abdcde29bf2e8d868bf7f6_0.webp)
 
 ### One Death, All Dead
 If a single player makes a fatal mistake -like falling into lava- the run ends immediately for everyone.
@@ -68,7 +74,7 @@ If a single player makes a fatal mistake -like falling into lava- the run ends i
 The run is only considered a success once the Ender Dragon is defeated.
 
 <div align="center">
-  
+
 ![victory](https://cdn.modrinth.com/data/cached_images/2e1cff3f589246d1cc8d553fd5113abefde2d1a4.gif)
 
 </div>
@@ -77,11 +83,11 @@ The run is only considered a success once the Ender Dragon is defeated.
 
 - A live timer tracks your run in the action bar and captures your final time automatically.
 - Late-joining players can hop in mid-run and instantly sync to the current state, or join fresh after a reset.
-  
+
 - When a run ends (via death or victory), simply click the text in chat to immediately generate a fresh world and start a new run.
 
 <div align="center">
-  
+
 ![world_generation](https://cdn.modrinth.com/data/cached_images/33963db02e1e0c6f200463a9b92f391fd7b5e1a5.gif)
 
 </div>
@@ -92,6 +98,8 @@ The run is only considered a success once the Ender Dragon is defeated.
 - `/reset` - Instantly restart the current run (No OP required)
 - `/stoprun` - Admin command to stop current run (requires operator)
 - `/runinfo` - Display current run state, timer, and shared stats
+- `/settings` - Open the settings menu
+- `/chaos` - Open the game mode selector menu
 
 <div align="center">
 
@@ -105,11 +113,11 @@ The run is only considered a success once the Ender Dragon is defeated.
 
 <div align="center">
 
-| Dependency | Version | Type | Note |
-| :--- | :---: | :---: | :--- |
-| **Fabric Loader** | `>=0.18.4` | Required | Minimum version 0.18.4 |
-| **Fabric API** | `*` | Required | Any version compatible with 1.21.11 |
-| **Fantasy** | `0.7.0...` | Included | Bundled in mod JAR |
+| Dependency |  Version   | Type | Note                             |
+| :--- |:----------:| :---: |:---------------------------------|
+| **Fabric Loader** | `>=0.19.3` | Required | Minimum version 0.19.3           |
+| **Fabric API** |    `*`     | Required | Any version compatible with 26.1 |
+| **Fantasy** |  `v0.8.0`  | Included | Bundled in mod JAR               |
 
 <br>
 
@@ -119,9 +127,36 @@ The run is only considered a success once the Ender Dragon is defeated.
 | **Client-side** | ⚠️ | Players don't need to install the mod only the server/host |
 | Single-player | ✅ | |
 | [Essentials](https://essentials.gg) | ✅ | Only the host needs to have it installed |
+| [Aternos](https://aternos.org/) | ✅ | Only the Aternos server needs to have it installed |
 | Other Fabric mods | ✅ Generally compatible | May conflict with mods that modify health/hunger, portals, world gen, or death handling |
 
 </div>
+
+![divider](https://cdn.modrinth.com/data/cached_images/f1555fa7709bdbd4776c2bf3fa8fd763f659e052.png)
+
+![faq](https://cdn.modrinth.com/data/cached_images/8fa48b1ea400760a82697408d36293e214e2ae53_0.webp)
+
+**Welcome to the Soul Link Speedrun FAQ!** Here you will find answers to the most common questions regarding gameplay mechanics, hosting, and technical support.
+
+_Please read this carefully before asking for support._
+
+## Is the mod available on Aternos?
+**Yes!** As of today, the mod is officially available on Aternos. You can now search for it directly in the Aternos mod list and install it on your server.
+
+## Will you backport to any version or port to Forge?
+**No.** The mod relies on modern libraries (specifically Fantasy for runtime world generation) that are exclusive to the Fabric loader on newer versions. Porting to Forge or older versions is not technically feasible.
+
+## Is it possible to disable the world reset on death?
+**No.** The mod is fundamentally designed as a Speedrun challenge. The core mechanic dictates that death results in a "Game Over" to encourage replayability. If you prefer a persistent survival experience with shared health but without resets, we recommend looking for "Shared Vitality" alternatives.
+
+## Can we save our progress or the current world?
+Currently, worlds are generated as temporary instances via the Fantasy library. When the server closes or the run ends, the world is deleted.
+
+## Can I use existing worlds?
+The mod is designed to generate its own temporary worlds. Using it on an existing standard vanilla save is **not recommended** as it may conflict with the mod's loop/reset mechanics. Always backup your data before testing!
+
+## How do I enable "Chaos Modes" (e.g., Shared Jumping)?
+You can toggle special game modes and difficulty settings in-game. Simply run the command `/chaos` to access the configuration menu for Shared Jumping, Half-Heart Mode, and other modifiers. Your changes will be applied in the next run.
 
 ![divider](https://cdn.modrinth.com/data/cached_images/f1555fa7709bdbd4776c2bf3fa8fd763f659e052.png)
 
