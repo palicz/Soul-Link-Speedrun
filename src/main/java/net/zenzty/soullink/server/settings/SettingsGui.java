@@ -622,7 +622,7 @@ public class SettingsGui {
                                         accessor.invokeUpdateToClient();
                                 } else {
                                         // For non-spectators, normal content updates work fine
-                                        broadcastChanges();
+                                        super.broadcastChanges();
                                 }
 
                                 // Don't call parent - this is a virtual GUI, we handle everything
@@ -696,7 +696,7 @@ public class SettingsGui {
                                                 }
 
                                                 // Broadcast changes to all players
-                                                broadcastChanges();
+                                                announceSettingsToChat();
 
                                                 player.closeContainer();
                                                 playConfirmSound();
@@ -712,8 +712,8 @@ public class SettingsGui {
                 /**
                  * Broadcasts the settings changes to all players in chat.
                  */
-                @Override
-                public void broadcastChanges() {
+
+                public void announceSettingsToChat() {
                         if (!settingsInventory.hasChanges()) return;
                         RunManager runManager = RunManager.getInstance();
                         if (runManager == null)
