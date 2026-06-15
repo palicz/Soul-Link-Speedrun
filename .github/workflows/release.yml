@@ -27,10 +27,11 @@ jobs:
       - name: Make Gradle Executable
         run: chmod +x ./gradlew
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Build with Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: build
+        run: ./gradlew build
         env:
           # Overrides 'mod_version' in gradle.properties with the tag name (e.g., v1.1.8)
           ORG_GRADLE_PROJECT_mod_version: ${{ github.ref_name }}
