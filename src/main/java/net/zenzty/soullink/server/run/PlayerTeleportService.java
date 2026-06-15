@@ -9,9 +9,11 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
@@ -39,7 +41,7 @@ public class PlayerTeleportService {
      *        (hunters in Manhunt), uses vanilla mechanics.
      */
     public void teleportToSpawn(ServerPlayer player, ServerLevel world, BlockPos spawnPos,
-            TimerService timerService, boolean syncToShared) {
+                                TimerService timerService, boolean syncToShared) {
         if (player == null || world == null || spawnPos == null || timerService == null) {
             SoulLink.LOGGER.error("Failed to teleport to spawn: null parameter(s)");
             return;
@@ -89,34 +91,23 @@ public class PlayerTeleportService {
     }
 
     /**
-     * Forceloads chunks around spawn for smooth teleport.
+     * Forceloads chunks around spawn for smooth teleport without blocking the main server thread.
      */
     public void forceloadSpawnChunks(ServerLevel world, BlockPos spawnPos) {
-        int spawnChunkX = spawnPos.getX() >> 4;
-        int spawnChunkZ = spawnPos.getZ() >> 4;
+        ChunkPos chunkPos = new ChunkPos(spawnPos.getX() >> 4, spawnPos.getZ() >> 4);
 
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                world.getChunk(spawnChunkX + dx, spawnChunkZ + dz);
-            }
-        }
+        world.getChunkSource().addTicketAndLoadWithRadius(TicketType.SPAWN_SEARCH, chunkPos, 2);
     }
 
     /**
      * Fully resets a player for a new run.
      */
     private void resetPlayer(ServerPlayer player) {
-        // Clear inventory
         player.getInventory().clearContent();
-
-        // Clear all status effects
         player.removeAllEffects();
-
-        // Reset experience
         player.setExperienceLevels(0);
         player.setExperiencePoints(0);
 
-        // Apply half heart mode if enabled
         Settings settings = Settings.getInstance();
         var maxHealthAttr = player.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealthAttr != null) {
@@ -131,21 +122,13 @@ public class PlayerTeleportService {
             }
         }
 
-        // Reset hunger
         player.getFoodData().setFoodLevel(20);
         player.getFoodData().setSaturation(5.0f);
-
-        // Clear ender chest
         player.getEnderChestInventory().clearContent();
-
-        // Reset fire and freeze ticks
         player.setRemainingFireTicks(0);
         player.setTicksFrozen(0);
 
-        // Reset all advancements
         resetPlayerAdvancements(player);
-
-        // Set to survival mode
         player.setGameMode(GameType.SURVIVAL);
 
         SoulLink.LOGGER.info("Reset player {} for new run", player.getName().getString());
