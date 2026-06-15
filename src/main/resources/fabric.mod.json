@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "soullink",
-	"version": "1.3.0",
+	"version": "${version}",
 	"name": "Soul Link Speedrun",
 	"description": "A cooperative speedrun mod where players share health and hunger. Work together to defeat the Ender Dragon!",
 	"authors": [
