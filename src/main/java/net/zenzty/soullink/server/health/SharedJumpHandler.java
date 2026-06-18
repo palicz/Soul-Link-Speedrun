@@ -14,7 +14,7 @@ import net.zenzty.soullink.server.settings.Settings;
 /**
  * Handles shared jumping functionality. When a player jumps, forces all other players who didn't
  * jump in the same tick to also jump forward.
- * 
+ *
  * Uses deferred processing at tick end to prevent race conditions where multiple players jump in
  * the same tick, which could cause double velocity due to latency.
  */
@@ -34,8 +34,6 @@ public class SharedJumpHandler {
 
     // Flag to prevent processing jumps multiple times per tick
     private static boolean processingJumps = false;
-
-
 
     /**
      * Called when a player jumps naturally. Registers them as a jumper for this tick, but defers
@@ -57,8 +55,7 @@ public class SharedJumpHandler {
         }
 
         MinecraftServer server = runManager.getServer();
-        if (server == null)
-            return;
+        if (server == null) return;
 
         int currentTick = server.getTickCount();
 
@@ -81,8 +78,8 @@ public class SharedJumpHandler {
         }
 
         // Log for debugging
-        SoulLink.LOGGER.debug("[Shared Jump] {} jumped (tick {})", player.getName().getString(),
-                currentTick);
+        SoulLink.LOGGER.debug(
+                "[Shared Jump] {} jumped (tick {})", player.getName().getString(), currentTick);
     }
 
     /**
@@ -119,18 +116,15 @@ public class SharedJumpHandler {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 // Skip players not in the run
                 ServerLevel playerWorld = player.level();
-                if (playerWorld == null
-                        || !runManager.isTemporaryWorld(playerWorld.dimension())) {
+                if (playerWorld == null || !runManager.isTemporaryWorld(playerWorld.dimension())) {
                     continue;
                 }
 
                 // Skip players who already jumped naturally this tick
-                if (jumpersThisTick.contains(player.getUUID()))
-                    continue;
+                if (jumpersThisTick.contains(player.getUUID())) continue;
 
                 // Skip players who have already been forced to jump this tick
-                if (forcedJumpersThisTick.contains(player.getUUID()))
-                    continue;
+                if (forcedJumpersThisTick.contains(player.getUUID())) continue;
 
                 // Apply force jump to this player
                 applyForceJump(player);
@@ -139,7 +133,8 @@ public class SharedJumpHandler {
 
             SoulLink.LOGGER.debug(
                     "[Shared Jump] Processed {} natural jumpers at tick end (tick {})",
-                    jumpersThisTick.size(), lastCollectedTick);
+                    jumpersThisTick.size(),
+                    lastCollectedTick);
 
             // Mark this tick as processed
             lastProcessedTick = lastCollectedTick;
@@ -172,8 +167,8 @@ public class SharedJumpHandler {
         // Send velocity update packet to sync with client
         player.connection.send(new ClientboundSetEntityMotionPacket(player));
 
-        SoulLink.LOGGER.debug("[Shared Jump] Forced jump applied to {}",
-                player.getName().getString());
+        SoulLink.LOGGER.debug(
+                "[Shared Jump] Forced jump applied to {}", player.getName().getString());
     }
 
     /**

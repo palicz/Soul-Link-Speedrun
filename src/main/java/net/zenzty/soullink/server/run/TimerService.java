@@ -93,7 +93,8 @@ public class TimerService {
      *        visible
      * @return true if timer is running, false otherwise
      */
-    public boolean tick(MinecraftServer server,
+    public boolean tick(
+            MinecraftServer server,
             java.util.function.Predicate<ServerPlayer> isInRunCheck,
             java.util.function.Predicate<ServerPlayer> skipActionBarFor) {
         // Wait for player input (movement or camera) to start timer
@@ -143,8 +144,7 @@ public class TimerService {
     /**
      * Check if the player has moved or looked around to start the timer.
      */
-    private boolean checkForInput(MinecraftServer server,
-            java.util.function.Predicate<ServerPlayer> isInRunCheck) {
+    private boolean checkForInput(MinecraftServer server, java.util.function.Predicate<ServerPlayer> isInRunCheck) {
         ServerPlayer trackedPlayer = null;
         if (trackedPlayerId != null) {
             trackedPlayer = server.getPlayerList().getPlayer(trackedPlayerId);
@@ -152,7 +152,8 @@ public class TimerService {
 
         if (trackedPlayer == null || trackedPlayer.hasDisconnected()) {
             // Find a new player to track
-            var players = server.getPlayerList().getPlayers().stream().filter(isInRunCheck)
+            var players = server.getPlayerList().getPlayers().stream()
+                    .filter(isInRunCheck)
                     .toList();
             if (players.isEmpty()) {
                 return false;

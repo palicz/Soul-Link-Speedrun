@@ -47,14 +47,17 @@ public class WorldService {
         // Overworld
         ServerLevel vanillaOverworld = server.overworld();
         RuntimeLevelConfig overworldConfig = new RuntimeLevelConfig()
-                .setDimensionType(BuiltinDimensionTypes.OVERWORLD).setDifficulty(serverDifficulty)
-                .setGameRule(GameRules.ADVANCE_TIME, true).setSeed(backgroundSeed)
+                .setDimensionType(BuiltinDimensionTypes.OVERWORLD)
+                .setDifficulty(serverDifficulty)
+                .setGameRule(GameRules.ADVANCE_TIME, true)
+                .setSeed(backgroundSeed)
                 .setGenerator(vanillaOverworld.getChunkSource().getGenerator());
 
         RuntimeLevelHandle tempOverworld = fantasy.openTemporaryLevel(overworldConfig);
         ServerLevel tempWorld = tempOverworld.asLevel();
         ServerClockManager clockManager = tempWorld.getServer().clockManager();
-        Holder<WorldClock> clock = tempWorld.dimensionTypeRegistration().value().defaultClock().orElseThrow();
+        Holder<WorldClock> clock =
+                tempWorld.dimensionTypeRegistration().value().defaultClock().orElseThrow();
         clockManager.setTotalTicks(clock, 0L);
 
         // Nether
@@ -62,8 +65,10 @@ public class WorldService {
         RuntimeLevelHandle tempNether = null;
         if (vanillaNether != null) {
             RuntimeLevelConfig netherConfig = new RuntimeLevelConfig()
-                    .setDimensionType(BuiltinDimensionTypes.NETHER).setDifficulty(serverDifficulty)
-                    .setSeed(backgroundSeed).setGenerator(vanillaNether.getChunkSource().getGenerator());
+                    .setDimensionType(BuiltinDimensionTypes.NETHER)
+                    .setDifficulty(serverDifficulty)
+                    .setSeed(backgroundSeed)
+                    .setGenerator(vanillaNether.getChunkSource().getGenerator());
             tempNether = fantasy.openTemporaryLevel(netherConfig);
         }
 
@@ -72,8 +77,10 @@ public class WorldService {
         RuntimeLevelHandle tempEnd = null;
         if (vanillaEnd != null) {
             RuntimeLevelConfig endConfig = new RuntimeLevelConfig()
-                    .setDimensionType(BuiltinDimensionTypes.END).setDifficulty(serverDifficulty)
-                    .setSeed(backgroundSeed).setGenerator(vanillaEnd.getChunkSource().getGenerator());
+                    .setDimensionType(BuiltinDimensionTypes.END)
+                    .setDifficulty(serverDifficulty)
+                    .setSeed(backgroundSeed)
+                    .setGenerator(vanillaEnd.getChunkSource().getGenerator());
             tempEnd = fantasy.openTemporaryLevel(endConfig);
         }
 
@@ -136,13 +143,33 @@ public class WorldService {
         return worldKey.equals(tempOverworld) || worldKey.equals(tempNether) || worldKey.equals(tempEnd);
     }
 
-    public ServerLevel getOverworld() { return overworldHandle != null ? overworldHandle.asLevel() : null; }
-    public ServerLevel getNether() { return netherHandle != null ? netherHandle.asLevel() : null; }
-    public ServerLevel getEnd() { return endHandle != null ? endHandle.asLevel() : null; }
-    public ResourceKey<Level> getOverworldKey() { return overworldHandle != null ? overworldHandle.getRegistryKey() : null; }
-    public ResourceKey<Level> getNetherKey() { return netherHandle != null ? netherHandle.getRegistryKey() : null; }
-    public ResourceKey<Level> getEndKey() { return endHandle != null ? endHandle.getRegistryKey() : null; }
-    public long getCurrentSeed() { return currentSeed; }
+    public ServerLevel getOverworld() {
+        return overworldHandle != null ? overworldHandle.asLevel() : null;
+    }
+
+    public ServerLevel getNether() {
+        return netherHandle != null ? netherHandle.asLevel() : null;
+    }
+
+    public ServerLevel getEnd() {
+        return endHandle != null ? endHandle.asLevel() : null;
+    }
+
+    public ResourceKey<Level> getOverworldKey() {
+        return overworldHandle != null ? overworldHandle.getRegistryKey() : null;
+    }
+
+    public ResourceKey<Level> getNetherKey() {
+        return netherHandle != null ? netherHandle.getRegistryKey() : null;
+    }
+
+    public ResourceKey<Level> getEndKey() {
+        return endHandle != null ? endHandle.getRegistryKey() : null;
+    }
+
+    public long getCurrentSeed() {
+        return currentSeed;
+    }
 
     public ServerLevel getLinkedNetherWorld(ServerLevel fromWorld) {
         if (fromWorld == null) return null;

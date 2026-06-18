@@ -22,7 +22,7 @@ import net.zenzty.soullink.server.settings.Settings;
  * Handles shared potion effects between all players. Instant potions (healing/harming) are applied
  * to one player (the closest) then synced via health. Duration-based effects are synced to all
  * players immediately.
- * 
+ *
  * NOTE: This handler currently only handles instant damage (harming) effects to ensure shared
  * health is deducted immediately. Non-instant effects are generally handled by Minecraft's potion
  * logic and then synced via our mixins if needed.
@@ -45,7 +45,6 @@ public class SharedPotionHandler {
 
     // Track which players have been chosen for each splash event this tick
 
-
     /**
      * Represents a pending splash event with multiple affected players.
      */
@@ -64,8 +63,7 @@ public class SharedPotionHandler {
         }
 
         void calculateClosestPlayer() {
-            if (processed || playerPositions.isEmpty())
-                return;
+            if (processed || playerPositions.isEmpty()) return;
 
             // Calculate the impact center as the centroid of all affected players
             double centerX = 0, centerY = 0, centerZ = 0;
@@ -91,7 +89,6 @@ public class SharedPotionHandler {
 
             processed = true;
         }
-
     }
 
     /**
@@ -117,14 +114,13 @@ public class SharedPotionHandler {
     /**
      * Called when a player receives a status effect. For instant effects from splash potions, only
      * the closest player receives it. For duration-based effects, syncs to all other players.
-     * 
+     *
      * @param player The player receiving the effect
      * @param effect The effect being applied
      * @param source The entity that caused this effect (e.g., potion thrower or null for area)
      * @return true if the effect should be applied, false to cancel
      */
-    public static boolean onEffectApplied(ServerPlayer player, MobEffectInstance effect,
-            Entity source) {
+    public static boolean onEffectApplied(ServerPlayer player, MobEffectInstance effect, Entity source) {
         if (isSyncing) {
             return true; // Allow synced effects through
         }
@@ -152,8 +148,7 @@ public class SharedPotionHandler {
             } catch (RuntimeException r) {
                 throw r;
             } catch (Exception e) {
-                SoulLink.LOGGER.error("Failed to handle instant effect - allowing vanilla behavior",
-                        e);
+                SoulLink.LOGGER.error("Failed to handle instant effect - allowing vanilla behavior", e);
                 return true;
             }
         }
@@ -168,22 +163,18 @@ public class SharedPotionHandler {
      * the closest player. This prevents healing/damage multiplication when multiple players are in
      * the splash area.
      */
-    private static boolean handleInstantEffect(ServerPlayer player,
-            MobEffectInstance effect, RunManager runManager) {
+    private static boolean handleInstantEffect(ServerPlayer player, MobEffectInstance effect, RunManager runManager) {
         MinecraftServer server = runManager.getServer();
-        if (server == null)
-            return true;
+        if (server == null) return true;
 
         // Ensure we're tracking the current tick
         onTick(server);
 
         Holder<MobEffect> effectType = effect.getEffect();
-        String eventKey =
-                effectType.getRegisteredName() + "_" + effect.getAmplifier() + "_" + currentTick;
+        String eventKey = effectType.getRegisteredName() + "_" + effect.getAmplifier() + "_" + currentTick;
 
         // Get or create the splash event for this effect
-        PendingSplashEvent splashEvent =
-                pendingSplashEvents.computeIfAbsent(eventKey, k -> new PendingSplashEvent());
+        PendingSplashEvent splashEvent = pendingSplashEvents.computeIfAbsent(eventKey, k -> new PendingSplashEvent());
 
         // Register this player as affected (store their position and the effect)
         splashEvent.addAffectedPlayer(player);
@@ -212,26 +203,22 @@ public class SharedPotionHandler {
     /**
      * Process a pending splash event - applies the instant effect only to the closest player.
      */
-    private static void processPendingSplashEvent(String eventKey, PendingSplashEvent splashEvent,
-            RunManager runManager) {
-        if (splashEvent.processed)
-            return;
+    private static void processPendingSplashEvent(
+            String eventKey, PendingSplashEvent splashEvent, RunManager runManager) {
+        if (splashEvent.processed) return;
         splashEvent.processed = true;
 
         MinecraftServer server = runManager.getServer();
-        if (server == null)
-            return;
+        if (server == null) return;
 
         // Calculate which player is closest to the splash center
         splashEvent.calculateClosestPlayer();
 
         UUID closestPlayerUuid = splashEvent.closestPlayer;
-        if (closestPlayerUuid == null)
-            return;
+        if (closestPlayerUuid == null) return;
 
         MobEffectInstance effect = splashEvent.pendingEffect;
-        if (effect == null)
-            return;
+        if (effect == null) return;
 
         // Find the closest player and apply the effect only to them
         ServerPlayer player = server.getPlayerList().getPlayer(closestPlayerUuid);
@@ -247,23 +234,28 @@ public class SharedPotionHandler {
                     // Instant Health heals 4 × 2^amplifier HP (4 at level 1, 8 at level 2, etc.)
                     float healAmount = (float) (4 << amplifier);
                     player.heal(healAmount);
-                    SoulLink.LOGGER.debug("Applied instant health ({} HP) to closest player: {}",
-                            healAmount, player.getName().getString());
+                    SoulLink.LOGGER.debug(
+                            "Applied instant health ({} HP) to closest player: {}",
+                            healAmount,
+                            player.getName().getString());
                 } else if (effectType == MobEffects.INSTANT_DAMAGE) {
                     // Instant Damage deals 6 HP per level (3 hearts)
                     float damageAmount = (float) (6 << amplifier);
                     // Use magic damage source for instant damage
                     ServerLevel world = player.level();
                     player.hurtServer(world, world.damageSources().magic(), damageAmount);
-                    SoulLink.LOGGER.debug("Applied instant damage ({} HP) to closest player: {}",
-                            damageAmount, player.getName().getString());
+                    SoulLink.LOGGER.debug(
+                            "Applied instant damage ({} HP) to closest player: {}",
+                            damageAmount,
+                            player.getName().getString());
                 }
             } finally {
                 SharedStatsHandler.setSyncing(false);
             }
         }
 
-        SoulLink.LOGGER.info("Splash instant effect: {} players affected, applied to closest: {}",
+        SoulLink.LOGGER.info(
+                "Splash instant effect: {} players affected, applied to closest: {}",
                 splashEvent.playerPositions.size(),
                 player != null ? player.getName().getString() : "unknown");
     }
@@ -271,13 +263,11 @@ public class SharedPotionHandler {
     /**
      * Handles duration-based effects - syncs to all other players.
      */
-    private static boolean handleDurationEffect(ServerPlayer player,
-            MobEffectInstance effect, RunManager runManager) {
+    private static boolean handleDurationEffect(ServerPlayer player, MobEffectInstance effect, RunManager runManager) {
         Holder<MobEffect> effectType = effect.getEffect();
 
         // Create a unique key for this effect to prevent duplicate syncs
-        String effectKey = effectType.getRegisteredName() + "_" + effect.getDuration() + "_"
-                + effect.getAmplifier();
+        String effectKey = effectType.getRegisteredName() + "_" + effect.getDuration() + "_" + effect.getAmplifier();
         if (recentlySyncedEffects.contains(effectKey)) {
             return true; // Already synced this tick
         }
@@ -302,36 +292,37 @@ public class SharedPotionHandler {
     /**
      * Syncs a status effect to all other players in the run.
      */
-    private static void syncEffectToOtherPlayers(ServerPlayer sourcePlayer,
-            MobEffectInstance effect) {
+    private static void syncEffectToOtherPlayers(ServerPlayer sourcePlayer, MobEffectInstance effect) {
         RunManager runManager = RunManager.getInstance();
-        if (runManager == null)
-            return;
+        if (runManager == null) return;
 
         MinecraftServer server = runManager.getServer();
-        if (server == null)
-            return;
+        if (server == null) return;
 
         isSyncing = true;
         try {
             for (ServerPlayer otherPlayer : server.getPlayerList().getPlayers()) {
-                if (otherPlayer == sourcePlayer)
-                    continue;
+                if (otherPlayer == sourcePlayer) continue;
 
                 ServerLevel otherWorld = otherPlayer.level();
-                if (!runManager.isTemporaryWorld(otherWorld.dimension()))
-                    continue;
+                if (!runManager.isTemporaryWorld(otherWorld.dimension())) continue;
 
                 // Apply a copy of the effect to the other player
-                MobEffectInstance effectCopy = new MobEffectInstance(effect.getEffect(),
-                        effect.getDuration(), effect.getAmplifier(), effect.isAmbient(),
-                        effect.isVisible(), effect.showIcon());
+                MobEffectInstance effectCopy = new MobEffectInstance(
+                        effect.getEffect(),
+                        effect.getDuration(),
+                        effect.getAmplifier(),
+                        effect.isAmbient(),
+                        effect.isVisible(),
+                        effect.showIcon());
 
                 otherPlayer.addEffect(effectCopy);
             }
 
-            SoulLink.LOGGER.debug("Synced effect {} from {} to other players",
-                    effect.getEffect().getRegisteredName(), sourcePlayer.getName().getString());
+            SoulLink.LOGGER.debug(
+                    "Synced effect {} from {} to other players",
+                    effect.getEffect().getRegisteredName(),
+                    sourcePlayer.getName().getString());
 
         } finally {
             isSyncing = false;

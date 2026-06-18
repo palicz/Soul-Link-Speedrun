@@ -58,18 +58,21 @@ public class RunManager {
     private volatile boolean endInitialized = false;
 
     public static Component getPrefix() {
-        return Component.empty().append(Component.literal("[").withStyle(ChatFormatting.DARK_GRAY))
+        return Component.empty()
+                .append(Component.literal("[").withStyle(ChatFormatting.DARK_GRAY))
                 .append(Component.literal("SoulLink").withStyle(ChatFormatting.RED))
                 .append(Component.literal("] ").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     public static Component formatMessage(String message) {
-        return Component.empty().append(getPrefix())
+        return Component.empty()
+                .append(getPrefix())
                 .append(Component.literal(message).withStyle(ChatFormatting.GRAY));
     }
 
     public static Component formatMessageWithPlayer(String beforePlayer, String playerName, String afterPlayer) {
-        return Component.empty().append(getPrefix())
+        return Component.empty()
+                .append(getPrefix())
                 .append(Component.literal(beforePlayer).withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(playerName).withStyle(ChatFormatting.WHITE))
                 .append(Component.literal(afterPlayer).withStyle(ChatFormatting.GRAY));
@@ -77,7 +80,9 @@ public class RunManager {
 
     public static Component formatClickable(String text, String command, String hoverText) {
         return Component.literal(text)
-                .setStyle(Style.EMPTY.withColor(ChatFormatting.GREEN).withUnderlined(true)
+                .setStyle(Style.EMPTY
+                        .withColor(ChatFormatting.GREEN)
+                        .withUnderlined(true)
                         .withClickEvent(new ClickEvent.RunCommand(command))
                         .withHoverEvent(new HoverEvent.ShowText(
                                 Component.literal(hoverText).withStyle(ChatFormatting.GRAY))));
@@ -124,7 +129,6 @@ public class RunManager {
     }
 
     // ==================== RUN LIFECYCLE ====================
-
 
     public void startRun() {
         if (gameState == RunState.RUNNING || gameState == RunState.GENERATING_WORLD) {
@@ -185,7 +189,8 @@ public class RunManager {
                 spawnFinder.injectSpawnPos(nextRun.spawnPos());
                 transitionToRunning();
             } else if (server.getTickCount() % 10 == 0) {
-                Component statusText = Component.empty().append(Component.literal("⟳ ").withStyle(ChatFormatting.GRAY))
+                Component statusText = Component.empty()
+                        .append(Component.literal("⟳ ").withStyle(ChatFormatting.GRAY))
                         .append(Component.literal("Generating new world...").withStyle(ChatFormatting.GRAY));
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     player.sendOverlayMessage(statusText);
@@ -201,7 +206,11 @@ public class RunManager {
         ServerLevel tempOverworld = worldService.getOverworld();
         if (tempOverworld != null) {
             ServerClockManager clockManager = tempOverworld.getServer().clockManager();
-            Holder<WorldClock> clock = tempOverworld.dimensionTypeRegistration().value().defaultClock().orElseThrow();
+            Holder<WorldClock> clock = tempOverworld
+                    .dimensionTypeRegistration()
+                    .value()
+                    .defaultClock()
+                    .orElseThrow();
             clockManager.addTicks(clock, 1);
         }
 
@@ -231,11 +240,16 @@ public class RunManager {
         if (manhunt) {
             for (ServerLevel world : server.getAllLevels()) {
                 try {
-                    server.getCommands().getDispatcher().execute(
-                            "execute in " + world.dimension().identifier() + " run gamerule locator_bar false",
-                            server.createCommandSourceStack().withSuppressedOutput());
+                    server.getCommands()
+                            .getDispatcher()
+                            .execute(
+                                    "execute in " + world.dimension().identifier() + " run gamerule locator_bar false",
+                                    server.createCommandSourceStack().withSuppressedOutput());
                 } catch (Exception e) {
-                    SoulLink.LOGGER.warn("Could not disable locator_bar in {}: {}", world.dimension().identifier(), e.getMessage());
+                    SoulLink.LOGGER.warn(
+                            "Could not disable locator_bar in {}: {}",
+                            world.dimension().identifier(),
+                            e.getMessage());
                 }
             }
             manhuntManager.createTeams(server);
@@ -286,8 +300,11 @@ public class RunManager {
                     if (manhuntManager.isHunter(player)) {
                         player.connection.send(new ClientboundSetTitlesAnimationPacket(0, 25, 0));
                         ChatFormatting color = secondsRemaining <= 5 ? ChatFormatting.RED : ChatFormatting.GOLD;
-                        player.connection.send(new ClientboundSetTitleTextPacket(Component.literal(String.valueOf(secondsRemaining)).withStyle(color, ChatFormatting.BOLD)));
-                        player.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal("Catch the Runners!").withStyle(ChatFormatting.GRAY)));
+                        player.connection.send(
+                                new ClientboundSetTitleTextPacket(Component.literal(String.valueOf(secondsRemaining))
+                                        .withStyle(color, ChatFormatting.BOLD)));
+                        player.connection.send(new ClientboundSetSubtitleTextPacket(
+                                Component.literal("Catch the Runners!").withStyle(ChatFormatting.GRAY)));
                     }
                 }
             });
@@ -298,10 +315,12 @@ public class RunManager {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (manhuntManager.isSpeedrunner(player)) {
                     player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 40, 20));
-                    player.connection.send(new ClientboundSetTitleTextPacket(Component.literal("HUNTERS RELEASED!").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
+                    player.connection.send(new ClientboundSetTitleTextPacket(
+                            Component.literal("HUNTERS RELEASED!").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
                 } else if (manhuntManager.isHunter(player)) {
                     player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 40, 20));
-                    player.connection.send(new ClientboundSetTitleTextPacket(Component.literal("GO!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)));
+                    player.connection.send(new ClientboundSetTitleTextPacket(
+                            Component.literal("GO!").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)));
                 }
             }
         });
@@ -309,7 +328,8 @@ public class RunManager {
 
     public void deleteWorlds(boolean teleportPlayers) {
         if (teleportPlayers) {
-            List<ServerPlayer> allPlayers = new ArrayList<>(server.getPlayerList().getPlayers());
+            List<ServerPlayer> allPlayers =
+                    new ArrayList<>(server.getPlayerList().getPlayers());
             for (ServerPlayer player : allPlayers) {
                 ServerLevel playerWorld = getPlayerWorld(player);
                 if (playerWorld != null && isTemporaryWorld(playerWorld.dimension())) {
@@ -338,7 +358,15 @@ public class RunManager {
                     player.removeAllEffects();
                     BlockPos spawnPos = spawnFinder.getSpawnPos();
                     if (spawnPos != null) {
-                        player.teleportTo(overworld, spawnPos.getX() + 0.5, spawnPos.getY() + 10, spawnPos.getZ() + 0.5, Set.of(), 0, 0, true);
+                        player.teleportTo(
+                                overworld,
+                                spawnPos.getX() + 0.5,
+                                spawnPos.getY() + 10,
+                                spawnPos.getZ() + 0.5,
+                                Set.of(),
+                                0,
+                                0,
+                                true);
                     }
                     player.sendSystemMessage(formatMessage("A run is in progress. You are spectating until it ends."));
                 } else {
@@ -346,7 +374,8 @@ public class RunManager {
                     if (Settings.getInstance().isSyncedInventory()) {
                         net.zenzty.soullink.server.inventory.SharedInventoryHandler.syncPlayerToShared(player);
                     }
-                    player.sendSystemMessage(formatMessageWithPlayer("", player.getName().getString(), " joined. Stats synced."));
+                    player.sendSystemMessage(
+                            formatMessageWithPlayer("", player.getName().getString(), " joined. Stats synced."));
                 }
             }
         }
@@ -371,19 +400,34 @@ public class RunManager {
 
                 ServerLevel world = getPlayerWorld(player);
                 if (world != null) {
-                    world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_DEATH, SoundSource.PLAYERS, 0.5f, 0.8f);
+                    world.playSound(
+                            null,
+                            player.getX(),
+                            player.getY(),
+                            player.getZ(),
+                            SoundEvents.WITHER_DEATH,
+                            SoundSource.PLAYERS,
+                            0.5f,
+                            0.8f);
                 }
 
-                player.connection.send(new ClientboundSetTitleTextPacket(Component.literal("GAME OVER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
-                player.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal(finalTime).withStyle(ChatFormatting.WHITE)));
+                player.connection.send(new ClientboundSetTitleTextPacket(
+                        Component.literal("GAME OVER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
+                player.connection.send(new ClientboundSetSubtitleTextPacket(
+                        Component.literal(finalTime).withStyle(ChatFormatting.WHITE)));
             }
         }
 
-        Component restartMessage = Component.empty().append(getPrefix())
+        Component restartMessage = Component.empty()
+                .append(getPrefix())
                 .append(Component.literal("All players are dead. Click ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal("here").setStyle(Style.EMPTY.withColor(ChatFormatting.BLUE)
-                        .withUnderlined(true).withClickEvent(new ClickEvent.RunCommand("/start"))
-                        .withHoverEvent(new HoverEvent.ShowText(Component.literal("Start a new attempt").withStyle(ChatFormatting.GRAY)))))
+                .append(Component.literal("here")
+                        .setStyle(Style.EMPTY
+                                .withColor(ChatFormatting.BLUE)
+                                .withUnderlined(true)
+                                .withClickEvent(new ClickEvent.RunCommand("/start"))
+                                .withHoverEvent(new HoverEvent.ShowText(
+                                        Component.literal("Start a new attempt").withStyle(ChatFormatting.GRAY)))))
                 .append(Component.literal(" or use ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal("/start").withStyle(ChatFormatting.GOLD))
                 .append(Component.literal(" to start a new attempt.").withStyle(ChatFormatting.GRAY));
@@ -405,21 +449,50 @@ public class RunManager {
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerLevel world = getPlayerWorld(player);
-            if (world != null) world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f);
+            if (world != null)
+                world.playSound(
+                        null,
+                        player.getX(),
+                        player.getY(),
+                        player.getZ(),
+                        SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
+                        SoundSource.PLAYERS,
+                        1.0f,
+                        1.0f);
 
-            player.connection.send(new ClientboundSetTitleTextPacket(Component.literal("VICTORY").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal(finalTime).withStyle(ChatFormatting.WHITE)));
+            player.connection.send(new ClientboundSetTitleTextPacket(
+                    Component.literal("VICTORY").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)));
+            player.connection.send(new ClientboundSetSubtitleTextPacket(
+                    Component.literal(finalTime).withStyle(ChatFormatting.WHITE)));
         }
 
-        Component victoryMessage = Component.empty().append(getPrefix()).append(Component.literal("Dragon defeated in ").withStyle(ChatFormatting.GRAY)).append(Component.literal(finalTime).withStyle(ChatFormatting.WHITE));
+        Component victoryMessage = Component.empty()
+                .append(getPrefix())
+                .append(Component.literal("Dragon defeated in ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(finalTime).withStyle(ChatFormatting.WHITE));
         server.getPlayerList().broadcastSystemMessage(victoryMessage, false);
 
-        Component clickableHere = Component.literal("here").setStyle(Style.EMPTY.withColor(ChatFormatting.AQUA).withUnderlined(true).withClickEvent(new ClickEvent.RunCommand("/start")).withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to start a new run!").withStyle(ChatFormatting.GRAY))));
-        Component restartMessage = Component.empty().append(getPrefix()).append(Component.literal("Victory! Click ").withStyle(ChatFormatting.GRAY)).append(clickableHere).append(Component.literal(" or use ").withStyle(ChatFormatting.GRAY)).append(Component.literal("/start").withStyle(ChatFormatting.GOLD)).append(Component.literal(" to challenge again.").withStyle(ChatFormatting.GRAY));
+        Component clickableHere = Component.literal("here")
+                .setStyle(Style.EMPTY
+                        .withColor(ChatFormatting.AQUA)
+                        .withUnderlined(true)
+                        .withClickEvent(new ClickEvent.RunCommand("/start"))
+                        .withHoverEvent(new HoverEvent.ShowText(
+                                Component.literal("Click to start a new run!").withStyle(ChatFormatting.GRAY))));
+        Component restartMessage = Component.empty()
+                .append(getPrefix())
+                .append(Component.literal("Victory! Click ").withStyle(ChatFormatting.GRAY))
+                .append(clickableHere)
+                .append(Component.literal(" or use ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal("/start").withStyle(ChatFormatting.GOLD))
+                .append(Component.literal(" to challenge again.").withStyle(ChatFormatting.GRAY));
         server.getPlayerList().broadcastSystemMessage(restartMessage, false);
     }
 
-    public boolean isPlayerInRun(ServerPlayer player) { return isInRun(player); }
+    public boolean isPlayerInRun(ServerPlayer player) {
+        return isInRun(player);
+    }
+
     private boolean isInRun(ServerPlayer player) {
         ServerLevel world = getPlayerWorld(player);
         return world != null && isTemporaryWorld(world.dimension());
@@ -432,7 +505,9 @@ public class RunManager {
                 try {
                     ServerBossEvent bossBar = ((EnderDragonFightAccessor) fight).getBossBar();
                     if (bossBar != null) forceClearBossBar(bossBar);
-                } catch (Exception e) { SoulLink.LOGGER.warn("Failed to clear Ender Dragon bossbar: {}", e.getMessage()); }
+                } catch (Exception e) {
+                    SoulLink.LOGGER.warn("Failed to clear Ender Dragon bossbar: {}", e.getMessage());
+                }
             }
         }
     }
@@ -447,35 +522,93 @@ public class RunManager {
         for (ServerLevel world : server.getAllLevels()) {
             Raids raidManager = world.getRaids();
             if (raidManager == null) continue;
-            List<Raid> raidsToClean = new ArrayList<>(((RaidManagerAccessor) raidManager).getRaids().values());
+            List<Raid> raidsToClean = new ArrayList<>(
+                    ((RaidManagerAccessor) raidManager).getRaids().values());
             for (Raid raid : raidsToClean) {
                 try {
                     raid.stop();
                     ServerBossEvent bossBar = ((RaidAccessor) raid).getBar();
                     if (bossBar != null) forceClearBossBar(bossBar);
-                } catch (Exception e) { SoulLink.LOGGER.warn("Failed to clear raid bossbar: {}", e.getMessage()); }
+                } catch (Exception e) {
+                    SoulLink.LOGGER.warn("Failed to clear raid bossbar: {}", e.getMessage());
+                }
             }
         }
     }
 
-    public void teleportToVanillaSpawn(ServerPlayer player) { teleportService.teleportToVanillaSpawn(player); }
+    public void teleportToVanillaSpawn(ServerPlayer player) {
+        teleportService.teleportToVanillaSpawn(player);
+    }
 
-    public RunState getGameState() { return gameState; }
-    public boolean isRunActive() { return gameState == RunState.RUNNING; }
-    public boolean isGameOver() { return gameState == RunState.GAMEOVER; }
-    public boolean isEndInitialized() { return endInitialized; }
-    public void setEndInitialized(boolean initialized) { this.endInitialized = initialized; }
-    public ServerLevel getTemporaryOverworld() { return worldService.getOverworld(); }
-    public ServerLevel getTemporaryNether() { return worldService.getNether(); }
-    public ServerLevel getTemporaryEnd() { return worldService.getEnd(); }
-    public ResourceKey<Level> getTemporaryOverworldKey() { return worldService.getOverworldKey(); }
-    public ResourceKey<Level> getTemporaryNetherKey() { return worldService.getNetherKey(); }
-    public ResourceKey<Level> getTemporaryEndKey() { return worldService.getEndKey(); }
-    public boolean isTemporaryWorld(ResourceKey<Level> worldKey) { return worldService.isTemporaryWorld(worldKey); }
-    public ServerLevel getLinkedNetherWorld(ServerLevel fromWorld) { return worldService.getLinkedNetherWorld(fromWorld); }
-    public BlockPos getSpawnPos() { return spawnFinder != null ? spawnFinder.getSpawnPos() : null; }
-    public MinecraftServer getServer() { return server; }
-    public String getFormattedTime() { return timerService.getFormattedTime(); }
-    public long getElapsedTimeMillis() { return timerService.getElapsedTimeMillis(); }
-    public void stopTimer() { timerService.stop(); }
+    public RunState getGameState() {
+        return gameState;
+    }
+
+    public boolean isRunActive() {
+        return gameState == RunState.RUNNING;
+    }
+
+    public boolean isGameOver() {
+        return gameState == RunState.GAMEOVER;
+    }
+
+    public boolean isEndInitialized() {
+        return endInitialized;
+    }
+
+    public void setEndInitialized(boolean initialized) {
+        this.endInitialized = initialized;
+    }
+
+    public ServerLevel getTemporaryOverworld() {
+        return worldService.getOverworld();
+    }
+
+    public ServerLevel getTemporaryNether() {
+        return worldService.getNether();
+    }
+
+    public ServerLevel getTemporaryEnd() {
+        return worldService.getEnd();
+    }
+
+    public ResourceKey<Level> getTemporaryOverworldKey() {
+        return worldService.getOverworldKey();
+    }
+
+    public ResourceKey<Level> getTemporaryNetherKey() {
+        return worldService.getNetherKey();
+    }
+
+    public ResourceKey<Level> getTemporaryEndKey() {
+        return worldService.getEndKey();
+    }
+
+    public boolean isTemporaryWorld(ResourceKey<Level> worldKey) {
+        return worldService.isTemporaryWorld(worldKey);
+    }
+
+    public ServerLevel getLinkedNetherWorld(ServerLevel fromWorld) {
+        return worldService.getLinkedNetherWorld(fromWorld);
+    }
+
+    public BlockPos getSpawnPos() {
+        return spawnFinder != null ? spawnFinder.getSpawnPos() : null;
+    }
+
+    public MinecraftServer getServer() {
+        return server;
+    }
+
+    public String getFormattedTime() {
+        return timerService.getFormattedTime();
+    }
+
+    public long getElapsedTimeMillis() {
+        return timerService.getElapsedTimeMillis();
+    }
+
+    public void stopTimer() {
+        timerService.stop();
+    }
 }

@@ -1,10 +1,5 @@
 package net.zenzty.soullink.mixin.interaction;
 
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -19,6 +14,11 @@ import net.minecraft.world.phys.Vec3;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.mixin.server.ServerWorldAccessor;
 import net.zenzty.soullink.server.run.RunManager;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Mixin for EndPortalBlock to redirect End portal travel to temporary dimensions. Handles both
@@ -31,8 +31,8 @@ public abstract class EndPortalMixin {
     private static final BlockPos END_SPAWN_PLATFORM = new BlockPos(100, 49, 0);
 
     @Inject(method = "getPortalDestination", at = @At("HEAD"), cancellable = true)
-    private void redirectEndPortal(ServerLevel world, Entity entity, BlockPos pos,
-            CallbackInfoReturnable<TeleportTransition> cir) {
+    private void redirectEndPortal(
+            ServerLevel world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> cir) {
         RunManager runManager = RunManager.getInstance();
 
         // Allow portal redirects during both RUNNING and GAMEOVER states
@@ -75,10 +75,11 @@ public abstract class EndPortalMixin {
                 }
 
                 // Spawn above the obsidian platform
-                spawnPos = new Vec3(END_SPAWN_PLATFORM.getX() + 0.5,
-                        END_SPAWN_PLATFORM.getY() + 1.0, END_SPAWN_PLATFORM.getZ() + 0.5);
-                SoulLink.LOGGER.info("Redirecting End portal: temp overworld -> temp end at {}",
-                        spawnPos);
+                spawnPos = new Vec3(
+                        END_SPAWN_PLATFORM.getX() + 0.5,
+                        END_SPAWN_PLATFORM.getY() + 1.0,
+                        END_SPAWN_PLATFORM.getZ() + 0.5);
+                SoulLink.LOGGER.info("Redirecting End portal: temp overworld -> temp end at {}", spawnPos);
             }
         } else if (isInTempEnd) {
             // Coming FROM the End (exit portal after dragon)
@@ -86,10 +87,8 @@ public abstract class EndPortalMixin {
             if (destinationWorld != null) {
                 // Return to overworld - find a safe spawn location near origin
                 BlockPos safeSpawn = findSafeSpawn(destinationWorld, 0, 0);
-                spawnPos = new Vec3(safeSpawn.getX() + 0.5, safeSpawn.getY() + 1.0,
-                        safeSpawn.getZ() + 0.5);
-                SoulLink.LOGGER.info(
-                        "Redirecting End exit portal: temp end -> temp overworld at {}", spawnPos);
+                spawnPos = new Vec3(safeSpawn.getX() + 0.5, safeSpawn.getY() + 1.0, safeSpawn.getZ() + 0.5);
+                SoulLink.LOGGER.info("Redirecting End exit portal: temp end -> temp overworld at {}", spawnPos);
             }
         }
 
@@ -101,27 +100,32 @@ public abstract class EndPortalMixin {
         // Trigger advancement for players using the vanilla dimension keys
         final boolean goingToEnd = isInTempOverworld;
 
-        cir.setReturnValue(new TeleportTransition(destinationWorld, spawnPos, Vec3.ZERO, // Reset
-                                                                                      // velocity
-                entity.getYRot(), entity.getXRot(),
+        cir.setReturnValue(new TeleportTransition(
+                destinationWorld,
+                spawnPos,
+                Vec3.ZERO, // Reset
+                // velocity
+                entity.getYRot(),
+                entity.getXRot(),
                 TeleportTransition.PLAY_PORTAL_SOUND
                         .then(TeleportTransition.PLACE_PORTAL_TICKET)
-                        .then(teleportedEntity -> triggerEndAdvancement(teleportedEntity,
-                                goingToEnd))));
+                        .then(teleportedEntity -> triggerEndAdvancement(teleportedEntity, goingToEnd))));
     }
 
     /**
      * Triggers the changed_dimension advancement for End portal travel. Uses vanilla dimension keys
      * so the advancement system recognizes it.
      */
-    @Unique
-    private void triggerEndAdvancement(Entity entity, boolean goingToEnd) {
+    @Unique private void triggerEndAdvancement(Entity entity, boolean goingToEnd) {
         if (entity instanceof ServerPlayer player) {
             ResourceKey<Level> from = goingToEnd ? Level.OVERWORLD : Level.END;
             ResourceKey<Level> to = goingToEnd ? Level.END : Level.OVERWORLD;
             CriteriaTriggers.CHANGED_DIMENSION.trigger(player, from, to);
-            SoulLink.LOGGER.info("Triggered End advancement for {}: {} -> {}",
-                    player.getName().getString(), from.identifier(), to.identifier());
+            SoulLink.LOGGER.info(
+                    "Triggered End advancement for {}: {} -> {}",
+                    player.getName().getString(),
+                    from.identifier(),
+                    to.identifier());
         }
     }
 
@@ -129,8 +133,7 @@ public abstract class EndPortalMixin {
      * Initializes the End dimension by creating and injecting an EnderDragonFight. Fantasy
      * temporary worlds don't automatically get one, so we create it manually.
      */
-    @Unique
-    private boolean initializeEnd(ServerLevel endWorld) {
+    @Unique private boolean initializeEnd(ServerLevel endWorld) {
         SoulLink.LOGGER.info("Initializing temporary End dimension...");
 
         // Force-load the central chunks to ensure End island and structures are generated
@@ -182,14 +185,12 @@ public abstract class EndPortalMixin {
     /**
      * Finds a safe spawn location in the overworld.
      */
-    @Unique
-    private BlockPos findSafeSpawn(ServerLevel world, int centerX, int centerZ) {
+    @Unique private BlockPos findSafeSpawn(ServerLevel world, int centerX, int centerZ) {
         // Search in a spiral pattern for safe ground
         for (int radius = 0; radius <= 128; radius += 16) {
             for (int x = -radius; x <= radius; x += 16) {
                 for (int z = -radius; z <= radius; z += 16) {
-                    if (radius > 0 && Math.abs(x) != radius && Math.abs(z) != radius)
-                        continue;
+                    if (radius > 0 && Math.abs(x) != radius && Math.abs(z) != radius) continue;
 
                     int checkX = centerX + x;
                     int checkZ = centerZ + z;
@@ -198,7 +199,8 @@ public abstract class EndPortalMixin {
                     world.getChunk(checkX >> 4, checkZ >> 4);
 
                     int y = world.getHeight(
-                            net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, checkX,
+                            net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                            checkX,
                             checkZ);
 
                     if (y > 50 && y < 200) {
@@ -212,9 +214,8 @@ public abstract class EndPortalMixin {
         }
 
         // Fallback to origin at top surface
-        int topY = world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                centerX, centerZ);
+        int topY = world.getHeight(
+                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, centerX, centerZ);
         return new BlockPos(centerX, Math.max(topY, world.getMinY() + 64), centerZ);
     }
 }
-

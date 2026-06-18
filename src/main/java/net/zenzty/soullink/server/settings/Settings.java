@@ -147,8 +147,8 @@ public class Settings {
      * Creates a copy of the current settings for temporary editing in the GUI.
      */
     public SettingsSnapshot createSnapshot() {
-        return new SettingsSnapshot(difficulty, halfHeartMode, sharedPotions, sharedJumping,
-                manhuntMode, syncedInventory);
+        return new SettingsSnapshot(
+                difficulty, halfHeartMode, sharedPotions, sharedJumping, manhuntMode, syncedInventory);
     }
 
     /**
@@ -158,8 +158,9 @@ public class Settings {
     public void applySnapshot(SettingsSnapshot snapshot) {
         // Check if a run is active
         RunManager runManager = RunManager.getInstance();
-        boolean runActive = runManager != null && (runManager.getGameState() == RunState.RUNNING
-                || runManager.getGameState() == RunState.GENERATING_WORLD);
+        boolean runActive = runManager != null
+                && (runManager.getGameState() == RunState.RUNNING
+                        || runManager.getGameState() == RunState.GENERATING_WORLD);
 
         if (runActive) {
             // Already queued this exact snapshot (e.g. re-confirm without changing) – no-op
@@ -196,7 +197,11 @@ public class Settings {
 
         SoulLink.LOGGER.info(
                 "Settings applied: Difficulty={}, HalfHeart={}, SharedPotions={}, SharedJumping={}, Manhunt={}, SyncedInventory={}",
-                difficulty, halfHeartMode, sharedPotions, sharedJumping, manhuntMode,
+                difficulty,
+                halfHeartMode,
+                sharedPotions,
+                sharedJumping,
+                manhuntMode,
                 syncedInventory);
     }
 
@@ -214,8 +219,11 @@ public class Settings {
     /**
      * Immutable snapshot of settings for comparison and temporary editing.
      */
-    public record SettingsSnapshot(Difficulty difficulty, boolean halfHeartMode,
-            boolean sharedPotions, boolean sharedJumping, boolean manhuntMode,
-            boolean syncedInventory) {
-    }
+    public record SettingsSnapshot(
+            Difficulty difficulty,
+            boolean halfHeartMode,
+            boolean sharedPotions,
+            boolean sharedJumping,
+            boolean manhuntMode,
+            boolean syncedInventory) {}
 }

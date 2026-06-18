@@ -1,10 +1,5 @@
 package net.zenzty.soullink.mixin.ui;
 
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -12,6 +7,11 @@ import net.minecraft.world.level.GameType;
 import net.zenzty.soullink.server.manhunt.SpeedrunnerSelectorGui;
 import net.zenzty.soullink.server.settings.SettingsGui;
 import net.zenzty.soullink.server.settings.SettingsInfoGui;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Mixin to allow spectators to interact with Soul Link GUIs: chaos settings, info settings, and the

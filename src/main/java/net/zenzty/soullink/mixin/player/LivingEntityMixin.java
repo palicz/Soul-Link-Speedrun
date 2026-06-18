@@ -1,10 +1,5 @@
 package net.zenzty.soullink.mixin.player;
 
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -13,6 +8,11 @@ import net.minecraft.world.item.ItemStack;
 import net.zenzty.soullink.server.health.SharedStatsHandler;
 import net.zenzty.soullink.server.inventory.SharedInventoryHandler;
 import net.zenzty.soullink.server.run.RunManager;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Mixin for LivingEntity to intercept healing and armor equip for ServerPlayerEntity.
@@ -22,8 +22,7 @@ public abstract class LivingEntityMixin {
 
     private static final float NATURAL_REGEN_THRESHOLD = 1.0f;
 
-    @Unique
-    private float preHealHealth;
+    @Unique private float preHealHealth;
 
     @Inject(method = "heal", at = @At("HEAD"))
     private void recordPreHeal(float amount, CallbackInfo ci) {
@@ -35,7 +34,7 @@ public abstract class LivingEntityMixin {
     /**
      * Intercepts healing to sync health increases to all players. Called after the heal() method
      * has updated the entity's health.
-     * 
+     *
      * For natural regeneration (small heals <= 1.0), the healing is divided by the number of
      * players to normalize regen speed regardless of player count.
      */
@@ -54,14 +53,12 @@ public abstract class LivingEntityMixin {
 
         // Compute actual applied healing
         float applied = player.getHealth() - preHealHealth;
-        if (applied <= 0)
-            return;
+        if (applied <= 0) return;
 
         // Small heal amounts (<=NATURAL_REGEN_THRESHOLD) typically indicate natural regeneration
         // from saturation. Exclude potion-based regeneration.
         // Divide by player count to normalize regen speed
-        boolean isNaturalRegen = applied <= NATURAL_REGEN_THRESHOLD
-                && !player.hasEffect(MobEffects.REGENERATION);
+        boolean isNaturalRegen = applied <= NATURAL_REGEN_THRESHOLD && !player.hasEffect(MobEffects.REGENERATION);
         if (isNaturalRegen) {
             // Let SharedStatsHandler handle the normalized regen
             SharedStatsHandler.onNaturalRegen(player, applied);
@@ -92,4 +89,3 @@ public abstract class LivingEntityMixin {
         SharedInventoryHandler.syncFromPlayerToAll(player);
     }
 }
-

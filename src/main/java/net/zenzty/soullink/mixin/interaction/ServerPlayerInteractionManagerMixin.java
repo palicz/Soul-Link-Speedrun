@@ -1,10 +1,5 @@
 package net.zenzty.soullink.mixin.interaction;
 
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.world.InteractionHand;
@@ -13,6 +8,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.zenzty.soullink.server.inventory.SharedInventoryHandler;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Mixin for ServerPlayerInteractionManager to sync inventory after block interactions. This catches
@@ -26,8 +26,13 @@ public abstract class ServerPlayerInteractionManagerMixin {
     public ServerPlayer player;
 
     @Inject(method = "useItemOn", at = @At("RETURN"))
-    private void afterInteractBlock(ServerPlayer player, Level world, ItemStack stack,
-            InteractionHand hand, BlockHitResult hitResult, CallbackInfoReturnable<InteractionResult> cir) {
+    private void afterInteractBlock(
+            ServerPlayer player,
+            Level world,
+            ItemStack stack,
+            InteractionHand hand,
+            BlockHitResult hitResult,
+            CallbackInfoReturnable<InteractionResult> cir) {
         if (SharedInventoryHandler.isSyncing()) {
             return;
         }
@@ -39,8 +44,12 @@ public abstract class ServerPlayerInteractionManagerMixin {
     }
 
     @Inject(method = "useItem", at = @At("RETURN"))
-    private void afterInteractItem(ServerPlayer player, Level world, ItemStack stack,
-            InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+    private void afterInteractItem(
+            ServerPlayer player,
+            Level world,
+            ItemStack stack,
+            InteractionHand hand,
+            CallbackInfoReturnable<InteractionResult> cir) {
         if (SharedInventoryHandler.isSyncing()) {
             return;
         }

@@ -137,8 +137,7 @@ public class ManhuntManager {
      * prefixes.
      */
     public void createTeams(MinecraftServer server) {
-        if (server == null)
-            return;
+        if (server == null) return;
 
         Scoreboard scoreboard = server.getScoreboard();
 
@@ -171,8 +170,7 @@ public class ManhuntManager {
      * Assigns all players to their respective scoreboard teams.
      */
     public void assignPlayersToTeams(MinecraftServer server) {
-        if (server == null)
-            return;
+        if (server == null) return;
 
         Scoreboard scoreboard = server.getScoreboard();
         PlayerTeam runnersTeam = scoreboard.getPlayerTeam(RUNNERS_TEAM);
@@ -201,16 +199,14 @@ public class ManhuntManager {
             }
         }
 
-        SoulLink.LOGGER.info("Players assigned to teams: {} runners, {} hunters", runners.size(),
-                hunters.size());
+        SoulLink.LOGGER.info("Players assigned to teams: {} runners, {} hunters", runners.size(), hunters.size());
     }
 
     /**
      * Cleans up teams when run ends.
      */
     public void cleanupTeams(MinecraftServer server) {
-        if (server == null)
-            return;
+        if (server == null) return;
 
         Scoreboard scoreboard = server.getScoreboard();
 

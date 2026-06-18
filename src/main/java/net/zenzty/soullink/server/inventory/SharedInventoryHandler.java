@@ -96,11 +96,13 @@ public class SharedInventoryHandler {
             for (int i = 0; i < size; i++) {
                 try {
                     ItemStack stack = inv.getItem(i);
-                    master.set(i,
-                            stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
+                    master.set(i, stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
                 } catch (Exception e) {
-                    SoulLink.LOGGER.warn("Error copying inventory slot {} from player {}: {}", i,
-                            player.getName().getString(), e.getMessage());
+                    SoulLink.LOGGER.warn(
+                            "Error copying inventory slot {} from player {}: {}",
+                            i,
+                            player.getName().getString(),
+                            e.getMessage());
                     master.set(i, ItemStack.EMPTY);
                 }
             }
@@ -138,8 +140,11 @@ public class SharedInventoryHandler {
                 }
                 inv.setItem(i, target);
             } catch (Exception e) {
-                SoulLink.LOGGER.warn("Error applying inventory slot {} to player {}: {}", i,
-                        player.getName().getString(), e.getMessage());
+                SoulLink.LOGGER.warn(
+                        "Error applying inventory slot {} to player {}: {}",
+                        i,
+                        player.getName().getString(),
+                        e.getMessage());
             }
         }
     }
@@ -188,11 +193,14 @@ public class SharedInventoryHandler {
                 applyToPlayer(player);
             }
 
-            SoulLink.LOGGER.debug("Synced inventory from {} to all participants",
+            SoulLink.LOGGER.debug(
+                    "Synced inventory from {} to all participants",
                     sourcePlayer.getName().getString());
         } catch (Exception e) {
-            SoulLink.LOGGER.error("Error syncing inventory from {}: {}",
-                    sourcePlayer != null ? sourcePlayer.getName().getString() : "null", e);
+            SoulLink.LOGGER.error(
+                    "Error syncing inventory from {}: {}",
+                    sourcePlayer != null ? sourcePlayer.getName().getString() : "null",
+                    e);
         } finally {
             isSyncing = false;
         }
@@ -221,7 +229,8 @@ public class SharedInventoryHandler {
         isSyncing = true;
         try {
             applyToPlayer(player);
-            SoulLink.LOGGER.debug("Synced shared inventory to late joiner {}",
+            SoulLink.LOGGER.debug(
+                    "Synced shared inventory to late joiner {}",
                     player.getName().getString());
         } finally {
             isSyncing = false;

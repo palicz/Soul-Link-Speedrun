@@ -40,8 +40,12 @@ public class PlayerTeleportService {
      * @param syncToShared When true, syncs to shared stats and starts timer on input. When false
      *        (hunters in Manhunt), uses vanilla mechanics.
      */
-    public void teleportToSpawn(ServerPlayer player, ServerLevel world, BlockPos spawnPos,
-                                TimerService timerService, boolean syncToShared) {
+    public void teleportToSpawn(
+            ServerPlayer player,
+            ServerLevel world,
+            BlockPos spawnPos,
+            TimerService timerService,
+            boolean syncToShared) {
         if (player == null || world == null || spawnPos == null || timerService == null) {
             SoulLink.LOGGER.error("Failed to teleport to spawn: null parameter(s)");
             return;
@@ -49,8 +53,7 @@ public class PlayerTeleportService {
 
         resetPlayer(player);
 
-        player.teleportTo(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
-                Set.of(), 0, 0, true);
+        player.teleportTo(world, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, Set.of(), 0, 0, true);
 
         if (player.connection != null) {
             player.connection.send(new ClientboundClearTitlesPacket(false));
@@ -61,20 +64,25 @@ public class PlayerTeleportService {
             timerService.beginWaitingForInput(player);
         }
 
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1.0f, 1.5f);
+        world.playSound(
+                null,
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                SoundEvents.BEACON_ACTIVATE,
+                SoundSource.PLAYERS,
+                1.0f,
+                1.5f);
     }
 
     /**
      * Teleports a player to the vanilla overworld spawn.
      */
     public void teleportToVanillaSpawn(ServerPlayer player) {
-        if (player == null || server == null)
-            return;
+        if (player == null || server == null) return;
 
         ServerLevel overworld = server.overworld();
-        if (overworld == null)
-            return;
+        if (overworld == null) return;
 
         net.minecraft.world.level.storage.LevelData.RespawnData spawn =
                 overworld.getLevelData().getRespawnData();
@@ -86,8 +94,15 @@ public class PlayerTeleportService {
 
         BlockPos spawnPos = spawn.globalPos().pos();
 
-        player.teleportTo(overworld, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
-                Set.of(), player.getYRot(), player.getXRot(), true);
+        player.teleportTo(
+                overworld,
+                spawnPos.getX() + 0.5,
+                spawnPos.getY(),
+                spawnPos.getZ() + 0.5,
+                Set.of(),
+                player.getYRot(),
+                player.getXRot(),
+                true);
     }
 
     /**
@@ -114,8 +129,8 @@ public class PlayerTeleportService {
             if (settings.isHalfHeartMode()) {
                 maxHealthAttr.setBaseValue(1.0);
                 player.setHealth(1.0f);
-                SoulLink.LOGGER.info("Half Heart Mode enabled for {}",
-                        player.getName().getString());
+                SoulLink.LOGGER.info(
+                        "Half Heart Mode enabled for {}", player.getName().getString());
             } else {
                 maxHealthAttr.setBaseValue(20.0);
                 player.setHealth(player.getMaxHealth());
@@ -148,6 +163,7 @@ public class PlayerTeleportService {
             }
         }
 
-        SoulLink.LOGGER.info("Reset advancements for player {}", player.getName().getString());
+        SoulLink.LOGGER.info(
+                "Reset advancements for player {}", player.getName().getString());
     }
 }

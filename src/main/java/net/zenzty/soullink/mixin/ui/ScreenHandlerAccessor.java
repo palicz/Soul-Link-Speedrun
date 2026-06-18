@@ -38,4 +38,3 @@ public interface ScreenHandlerAccessor {
     @Invoker("broadcastFullState")
     void invokeUpdateToClient();
 }
-

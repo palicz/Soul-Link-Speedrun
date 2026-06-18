@@ -60,8 +60,10 @@ public class WorldPoolManager {
             if (run.end() != null) run.end().delete();
         }
         if (currentlyBuildingRun != null) {
-            if (currentlyBuildingRun.overworld() != null) currentlyBuildingRun.overworld().delete();
-            if (currentlyBuildingRun.nether() != null) currentlyBuildingRun.nether().delete();
+            if (currentlyBuildingRun.overworld() != null)
+                currentlyBuildingRun.overworld().delete();
+            if (currentlyBuildingRun.nether() != null)
+                currentlyBuildingRun.nether().delete();
             if (currentlyBuildingRun.end() != null) currentlyBuildingRun.end().delete();
         }
     }

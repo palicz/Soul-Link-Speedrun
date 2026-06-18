@@ -1,9 +1,5 @@
 package net.zenzty.soullink.mixin.interaction;
 
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -17,6 +13,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.zenzty.soullink.SoulLink;
 import net.zenzty.soullink.server.run.RunManager;
 import net.zenzty.soullink.util.PortalCreationHelper;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Mixin for FireChargeItem to allow nether portal creation in temporary dimensions.
@@ -58,9 +58,7 @@ public abstract class FireChargeItemMixin {
 
         // Try to create a portal at this location
         if (PortalCreationHelper.tryCreatePortal(serverWorld, insidePos)) {
-            SoulLink.LOGGER.info(
-                    "Created nether portal with fire charge in temporary dimension at {}",
-                    insidePos);
+            SoulLink.LOGGER.info("Created nether portal with fire charge in temporary dimension at {}", insidePos);
 
             // Consume the fire charge
             var player = context.getPlayer();
@@ -69,11 +67,9 @@ public abstract class FireChargeItemMixin {
             }
 
             // Play sound
-            world.playSound(null, insidePos, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS,
-                    1.0f, 1.0f);
+            world.playSound(null, insidePos, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 1.0f, 1.0f);
 
             cir.setReturnValue(InteractionResult.SUCCESS);
         }
     }
 }
-

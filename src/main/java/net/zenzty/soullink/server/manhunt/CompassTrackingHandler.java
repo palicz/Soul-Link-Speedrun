@@ -33,11 +33,11 @@ public class CompassTrackingHandler {
     private static final int UPDATE_INTERVAL_TICKS = 20;
     /** Ticks to suppress the timer on the action bar after a compass tracking message (3 seconds). */
     private static final int COMPASS_MESSAGE_TICKS = 60;
+
     private static int tickCounter = 0;
 
     private static final Map<UUID, UUID> hunterTargets = new HashMap<>();
-    private static final Map<UUID, Map<ResourceKey<Level>, GlobalPos>> lastKnownPositions =
-            new HashMap<>();
+    private static final Map<UUID, Map<ResourceKey<Level>, GlobalPos>> lastKnownPositions = new HashMap<>();
     /** Hunter UUID -> server tick until which the timer must not overwrite the action bar. */
     private static final Map<UUID, Integer> actionBarSuppressUntilTick = new HashMap<>();
 
@@ -106,8 +106,7 @@ public class CompassTrackingHandler {
         ResourceKey<Level> dimension = runner.level().dimension();
         GlobalPos currentPos = GlobalPos.of(dimension, runner.blockPosition());
 
-        lastKnownPositions.computeIfAbsent(runnerId, k -> new HashMap<>())
-                .put(dimension, currentPos);
+        lastKnownPositions.computeIfAbsent(runnerId, k -> new HashMap<>()).put(dimension, currentPos);
     }
 
     private static void cycleTarget(ServerPlayer hunter, MinecraftServer server) {
@@ -147,7 +146,8 @@ public class CompassTrackingHandler {
         ResourceKey<Level> targetDimension = newTarget.level().dimension();
 
         if (hunterDimension.equals(targetDimension)) {
-            hunter.sendOverlayMessage(Component.literal("Now tracking: ").withStyle(ChatFormatting.GRAY)
+            hunter.sendOverlayMessage(Component.literal("Now tracking: ")
+                    .withStyle(ChatFormatting.GRAY)
                     .append(Component.literal(newTarget.getName().getString())
                             .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
         } else {
@@ -158,7 +158,9 @@ public class CompassTrackingHandler {
 
         updateCompassForHunter(hunter, server);
 
-        SoulLink.LOGGER.debug("Hunter {} now tracking runner {}", hunter.getName().getString(),
+        SoulLink.LOGGER.debug(
+                "Hunter {} now tracking runner {}",
+                hunter.getName().getString(),
                 newTarget.getName().getString());
     }
 
@@ -178,8 +180,7 @@ public class CompassTrackingHandler {
             if (hunterDimension.equals(runnerDimension)) {
                 targetPos = GlobalPos.of(runnerDimension, runner.blockPosition());
             } else {
-                Map<ResourceKey<Level>, GlobalPos> runnerPositions =
-                        lastKnownPositions.get(targetId);
+                Map<ResourceKey<Level>, GlobalPos> runnerPositions = lastKnownPositions.get(targetId);
                 if (runnerPositions != null) {
                     targetPos = runnerPositions.get(hunterDimension);
                 }
@@ -190,8 +191,7 @@ public class CompassTrackingHandler {
             ItemStack stack = hunter.getInventory().getItem(i);
             if (stack.is(Items.COMPASS)) {
                 if (targetPos != null) {
-                    LodestoneTracker tracker =
-                            new LodestoneTracker(Optional.of(targetPos), false);
+                    LodestoneTracker tracker = new LodestoneTracker(Optional.of(targetPos), false);
                     stack.set(DataComponents.LODESTONE_TRACKER, tracker);
                 } else {
                     stack.remove(DataComponents.LODESTONE_TRACKER);
@@ -205,13 +205,17 @@ public class CompassTrackingHandler {
      */
     public static void giveTrackingCompass(ServerPlayer hunter) {
         ItemStack compass = new ItemStack(Items.COMPASS);
-        compass.set(DataComponents.CUSTOM_NAME, Component.literal("Runner Tracker")
-                .setStyle(Style.EMPTY.applyFormat(ChatFormatting.RED).withItalic(false)));
-        compass.set(DataComponents.LORE,
+        compass.set(
+                DataComponents.CUSTOM_NAME,
+                Component.literal("Runner Tracker")
+                        .setStyle(Style.EMPTY.applyFormat(ChatFormatting.RED).withItalic(false)));
+        compass.set(
+                DataComponents.LORE,
                 new ItemLore(List.of(Component.literal("Right Click to swap target")
                         .setStyle(Style.EMPTY.applyFormat(ChatFormatting.GRAY).withItalic(false)))));
         hunter.getInventory().add(compass);
-        SoulLink.LOGGER.info("Gave tracking compass to hunter {}", hunter.getName().getString());
+        SoulLink.LOGGER.info(
+                "Gave tracking compass to hunter {}", hunter.getName().getString());
     }
 
     /**

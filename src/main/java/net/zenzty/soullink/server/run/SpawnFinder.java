@@ -1,14 +1,13 @@
 package net.zenzty.soullink.server.run;
 
+import java.util.Random;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.PlayerSpawnFinder;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 import net.zenzty.soullink.SoulLink;
-
-import java.util.Random;
 
 public class SpawnFinder {
 
@@ -42,24 +41,31 @@ public class SpawnFinder {
         }
 
         // Vanilla async findSpawn
-        PlayerSpawnFinder.findSpawn(world, suggestion).whenCompleteAsync((vec, throwable) -> {
-            if (throwable != null || vec == null) {
-                SoulLink.LOGGER.warn("Vanilla SpawnFinder did not find a location around {}, rerolling...", suggestion);
-                reroll(world, suggestion);
-                return;
-            }
+        PlayerSpawnFinder.findSpawn(world, suggestion)
+                .whenCompleteAsync(
+                        (vec, throwable) -> {
+                            if (throwable != null || vec == null) {
+                                SoulLink.LOGGER.warn(
+                                        "Vanilla SpawnFinder did not find a location around {}, rerolling...",
+                                        suggestion);
+                                reroll(world, suggestion);
+                                return;
+                            }
 
-            BlockPos foundPos = BlockPos.containing(vec);
+                            BlockPos foundPos = BlockPos.containing(vec);
 
-            if (isOceanBiome(world, foundPos)) {
-                SoulLink.LOGGER.info("Vanilla found water here: {}. Rerolling... (Attempt: {})", foundPos, attempts);
-                reroll(world, suggestion);
-            } else {
-                SoulLink.LOGGER.info("Perfect land spawn found: {} (after {} attempts)", foundPos, attempts);
-                validSpawnPos = foundPos;
-                searchComplete = true;
-            }
-        }, world.getServer());
+                            if (isOceanBiome(world, foundPos)) {
+                                SoulLink.LOGGER.info(
+                                        "Vanilla found water here: {}. Rerolling... (Attempt: {})", foundPos, attempts);
+                                reroll(world, suggestion);
+                            } else {
+                                SoulLink.LOGGER.info(
+                                        "Perfect land spawn found: {} (after {} attempts)", foundPos, attempts);
+                                validSpawnPos = foundPos;
+                                searchComplete = true;
+                            }
+                        },
+                        world.getServer());
     }
 
     private void reroll(ServerLevel world, BlockPos oldSuggestion) {
@@ -76,10 +82,10 @@ public class SpawnFinder {
     private boolean isOceanBiome(ServerLevel world, BlockPos pos) {
         try {
             Holder<Biome> biome = world.getBiome(pos);
-            return biome.is(BiomeTags.IS_OCEAN) ||
-                    biome.is(BiomeTags.IS_DEEP_OCEAN) ||
-                    biome.is(BiomeTags.IS_RIVER) ||
-                    biome.is(BiomeTags.IS_BEACH);
+            return biome.is(BiomeTags.IS_OCEAN)
+                    || biome.is(BiomeTags.IS_DEEP_OCEAN)
+                    || biome.is(BiomeTags.IS_RIVER)
+                    || biome.is(BiomeTags.IS_BEACH);
         } catch (Exception e) {
             return false;
         }

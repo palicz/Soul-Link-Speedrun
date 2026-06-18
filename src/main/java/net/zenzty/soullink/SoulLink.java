@@ -1,10 +1,10 @@
 package net.zenzty.soullink;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import net.fabricmc.api.ModInitializer;
 import net.zenzty.soullink.server.command.CommandRegistry;
 import net.zenzty.soullink.server.event.EventRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * SoulLink Speedrun mod entrypoint. This is a thin facade that delegates initialization to

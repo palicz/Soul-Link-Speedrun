@@ -16,7 +16,7 @@ public class PortalCreationHelper {
     /**
      * Tries to create a nether portal at the given position. Checks for valid obsidian frame and
      * fills it with portal blocks.
-     * 
+     *
      * @param world The server world
      * @param startPos The position inside the portal frame to start checking from
      * @return true if a portal was successfully created
@@ -32,18 +32,17 @@ public class PortalCreationHelper {
     /**
      * Creates a portal along the specified axis if a valid frame exists.
      */
-    private static boolean createPortalWithAxis(ServerLevel world, BlockPos startPos,
-            Direction.Axis axis) {
+    private static boolean createPortalWithAxis(ServerLevel world, BlockPos startPos, Direction.Axis axis) {
         // Find the bounds of the portal frame
         Direction widthDir = axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
 
         // Find left edge
         BlockPos leftEdge = startPos;
         while (world.getBlockState(leftEdge.relative(widthDir.getOpposite())).isAir()
-                || world.getBlockState(leftEdge.relative(widthDir.getOpposite())).is(Blocks.FIRE)) {
+                || world.getBlockState(leftEdge.relative(widthDir.getOpposite()))
+                        .is(Blocks.FIRE)) {
             leftEdge = leftEdge.relative(widthDir.getOpposite());
-            if (Math.abs(leftEdge.getX() - startPos.getX()) > 21
-                    || Math.abs(leftEdge.getZ() - startPos.getZ()) > 21) {
+            if (Math.abs(leftEdge.getX() - startPos.getX()) > 21 || Math.abs(leftEdge.getZ() - startPos.getZ()) > 21) {
                 return false; // Too wide
             }
         }
@@ -81,8 +80,7 @@ public class PortalCreationHelper {
                 }
                 width++;
                 current = current.relative(widthDir);
-                if (width > 21)
-                    return false;
+                if (width > 21) return false;
             } else if (state.is(Blocks.OBSIDIAN)) {
                 break; // Found right edge
             } else {
@@ -90,8 +88,7 @@ public class PortalCreationHelper {
             }
         }
 
-        if (width < 2)
-            return false; // Too narrow
+        if (width < 2) return false; // Too narrow
 
         // Measure height
         int height = 0;
@@ -106,8 +103,7 @@ public class PortalCreationHelper {
                 }
                 height++;
                 current = current.above();
-                if (height > 21)
-                    return false;
+                if (height > 21) return false;
             } else if (state.is(Blocks.OBSIDIAN)) {
                 break; // Found top edge
             } else {
@@ -115,8 +111,7 @@ public class PortalCreationHelper {
             }
         }
 
-        if (height < 3)
-            return false; // Too short
+        if (height < 3) return false; // Too short
 
         // Validate the entire frame
         for (int w = 0; w < width; w++) {
@@ -124,8 +119,7 @@ public class PortalCreationHelper {
                 BlockPos checkPos = bottomLeft.relative(widthDir, w).above(h);
                 BlockState state = world.getBlockState(checkPos);
 
-                if (!state.isAir() && !state.is(Blocks.FIRE)
-                        && !state.is(Blocks.NETHER_PORTAL)) {
+                if (!state.isAir() && !state.is(Blocks.FIRE) && !state.is(Blocks.NETHER_PORTAL)) {
                     return false; // Something blocking the inside
                 }
             }
@@ -146,8 +140,7 @@ public class PortalCreationHelper {
         }
 
         // Valid frame! Fill with portal blocks
-        BlockState portalState =
-                Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS, axis);
+        BlockState portalState = Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS, axis);
 
         for (int w = 0; w < width; w++) {
             for (int h = 0; h < height; h++) {
@@ -157,10 +150,14 @@ public class PortalCreationHelper {
         }
 
         // Play portal sound
-        world.playSound(null, bottomLeft, net.minecraft.sounds.SoundEvents.PORTAL_TRIGGER,
-                net.minecraft.sounds.SoundSource.BLOCKS, 1.0f, 1.0f);
+        world.playSound(
+                null,
+                bottomLeft,
+                net.minecraft.sounds.SoundEvents.PORTAL_TRIGGER,
+                net.minecraft.sounds.SoundSource.BLOCKS,
+                1.0f,
+                1.0f);
 
         return true;
     }
 }
-
