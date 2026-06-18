@@ -1,40 +1,48 @@
-# gradle
-
+# Gradle
 .gradle/
+
+# Build artifacts
 build/
+bin/
 out/
 classes/
+jars/
 
-# eclipse
+# Fabric datagen output (regenerated via the datagen run)
+# The trailing * is important so Git evaluates the directory contents.
+**/src/main/generated/*
 
+# Eclipse
+.settings/
+.classpath
+.project
+.checkstyle
+.factorypath
+.metadata
 *.launch
 
-# idea
-
+# IntelliJ IDEA
 .idea/
 *.iml
 *.ipr
 *.iws
 
-# vscode
+# VS Code
+.vscode/
 
-.settings/
-bin/
-.classpath
-.project
-.vscode/launch.json
+# Fabric runtime
+run/
 
-# macos
-
-*.DS_Store
-
-# fabric
-
-/run/
-
-# java
-
-hs_err_*.log
-replay_*.log
+# Logs and debug artifacts
+*.log
+*.log.gz
 *.hprof
 *.jfr
+focus.txt
+
+# Windows
+*.db
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
