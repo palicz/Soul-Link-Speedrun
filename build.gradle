@@ -1,6 +1,7 @@
 plugins {
 	id "net.fabricmc.fabric-loom" version "${loom_version}"
 	id "com.diffplug.spotless" version "${spotless_version}"
+	id "checkstyle"
 }
 
 version = project.mod_version
@@ -72,4 +73,15 @@ spotless {
 		endWithNewline()
 		formatAnnotations()
 	}
+}
+
+// Static analysis. Spotless owns formatting; Checkstyle owns correctness/quality only.
+checkstyle {
+	toolVersion = project.checkstyle_version
+	configFile = file("checkstyle.xml")
+	maxWarnings = 0
+}
+
+tasks.named("checkstyleMain") {
+	source = sourceSets.main.allJava
 }
