@@ -8,10 +8,6 @@ out/
 classes/
 jars/
 
-# Fabric datagen output (regenerated via the datagen run)
-# The trailing * is important so Git evaluates the directory contents.
-**/src/main/generated/*
-
 # Eclipse
 .settings/
 .classpath

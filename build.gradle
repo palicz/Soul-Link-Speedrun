@@ -20,12 +20,6 @@ repositories {
 	}
 }
 
-fabricApi {
-	configureDataGeneration {
-		client = true
-	}
-}
-
 dependencies {
 	// Minecraft 26.1 is unobfuscated, so no mappings dependency is required and mod
 	// dependencies use the plain implementation/include configurations.
