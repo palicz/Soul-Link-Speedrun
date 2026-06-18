@@ -36,10 +36,10 @@ public class CompassTrackingHandler {
 
     private static int tickCounter = 0;
 
-    private static final Map<UUID, UUID> hunterTargets = new HashMap<>();
-    private static final Map<UUID, Map<ResourceKey<Level>, GlobalPos>> lastKnownPositions = new HashMap<>();
+    private static final Map<UUID, UUID> HUNTER_TARGETS = new HashMap<>();
+    private static final Map<UUID, Map<ResourceKey<Level>, GlobalPos>> LAST_KNOWN_POSITIONS = new HashMap<>();
     /** Hunter UUID -> server tick until which the timer must not overwrite the action bar. */
-    private static final Map<UUID, Integer> actionBarSuppressUntilTick = new HashMap<>();
+    private static final Map<UUID, Integer> ACTION_BAR_SUPPRESS_UNTIL_TICK = new HashMap<>();
 
     /**
      * Registers the compass use event. Call this once during mod initialization.
@@ -106,7 +106,7 @@ public class CompassTrackingHandler {
         ResourceKey<Level> dimension = runner.level().dimension();
         GlobalPos currentPos = GlobalPos.of(dimension, runner.blockPosition());
 
-        lastKnownPositions.computeIfAbsent(runnerId, k -> new HashMap<>()).put(dimension, currentPos);
+        LAST_KNOWN_POSITIONS.computeIfAbsent(runnerId, k -> new HashMap<>()).put(dimension, currentPos);
     }
 
     private static void cycleTarget(ServerPlayer hunter, MinecraftServer server) {
@@ -126,7 +126,7 @@ public class CompassTrackingHandler {
         }
 
         UUID hunterId = hunter.getUUID();
-        UUID currentTarget = hunterTargets.get(hunterId);
+        UUID currentTarget = HUNTER_TARGETS.get(hunterId);
 
         int currentIndex = -1;
         if (currentTarget != null) {
@@ -140,7 +140,7 @@ public class CompassTrackingHandler {
 
         int nextIndex = (currentIndex + 1) % runners.size();
         ServerPlayer newTarget = runners.get(nextIndex);
-        hunterTargets.put(hunterId, newTarget.getUUID());
+        HUNTER_TARGETS.put(hunterId, newTarget.getUUID());
 
         ResourceKey<Level> hunterDimension = hunter.level().dimension();
         ResourceKey<Level> targetDimension = newTarget.level().dimension();
@@ -165,7 +165,7 @@ public class CompassTrackingHandler {
     }
 
     private static void updateCompassForHunter(ServerPlayer hunter, MinecraftServer server) {
-        UUID targetId = hunterTargets.get(hunter.getUUID());
+        UUID targetId = HUNTER_TARGETS.get(hunter.getUUID());
         if (targetId == null) {
             return;
         }
@@ -180,7 +180,7 @@ public class CompassTrackingHandler {
             if (hunterDimension.equals(runnerDimension)) {
                 targetPos = GlobalPos.of(runnerDimension, runner.blockPosition());
             } else {
-                Map<ResourceKey<Level>, GlobalPos> runnerPositions = lastKnownPositions.get(targetId);
+                Map<ResourceKey<Level>, GlobalPos> runnerPositions = LAST_KNOWN_POSITIONS.get(targetId);
                 if (runnerPositions != null) {
                     targetPos = runnerPositions.get(hunterDimension);
                 }
@@ -223,7 +223,7 @@ public class CompassTrackingHandler {
      * overwrite it for 3 seconds.
      */
     private static void markCompassMessageShown(UUID hunterId, MinecraftServer server) {
-        actionBarSuppressUntilTick.put(hunterId, server.getTickCount() + COMPASS_MESSAGE_TICKS);
+        ACTION_BAR_SUPPRESS_UNTIL_TICK.put(hunterId, server.getTickCount() + COMPASS_MESSAGE_TICKS);
     }
 
     /**
@@ -236,10 +236,10 @@ public class CompassTrackingHandler {
      * @return true to suppress the timer action bar for this player
      */
     public static boolean shouldSuppressTimerActionBar(UUID playerId, int currentTick) {
-        Integer until = actionBarSuppressUntilTick.get(playerId);
+        Integer until = ACTION_BAR_SUPPRESS_UNTIL_TICK.get(playerId);
         if (until == null) return false;
         if (currentTick >= until) {
-            actionBarSuppressUntilTick.remove(playerId);
+            ACTION_BAR_SUPPRESS_UNTIL_TICK.remove(playerId);
             return false;
         }
         return true;
@@ -250,8 +250,8 @@ public class CompassTrackingHandler {
      */
     public static void reset() {
         tickCounter = 0;
-        hunterTargets.clear();
-        lastKnownPositions.clear();
-        actionBarSuppressUntilTick.clear();
+        HUNTER_TARGETS.clear();
+        LAST_KNOWN_POSITIONS.clear();
+        ACTION_BAR_SUPPRESS_UNTIL_TICK.clear();
     }
 }

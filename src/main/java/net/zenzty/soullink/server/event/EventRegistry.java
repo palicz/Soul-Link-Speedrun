@@ -54,7 +54,7 @@ public class EventRegistry {
     }
 
     // Track delayed tasks (list of tasks with remaining ticks)
-    private static final List<DelayedTask> delayedTasks = new ArrayList<>();
+    private static final List<DelayedTask> DELAYED_TASKS = new ArrayList<>();
 
     /**
      * Registers all events for the SoulLink mod.
@@ -94,7 +94,7 @@ public class EventRegistry {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             SoulLink.LOGGER.info("Server stopping - saving settings and cleaning up temporary worlds");
             SettingsPersistence.save(server);
-            delayedTasks.clear(); // Clear pending tasks
+            DELAYED_TASKS.clear(); // Clear pending tasks
             RunManager.cleanup();
         });
     }
@@ -542,7 +542,7 @@ public class EventRegistry {
      * Schedule a task to run after a delay in ticks.
      */
     public static void scheduleDelayed(int delayTicks, Runnable task) {
-        delayedTasks.add(new DelayedTask(delayTicks, task));
+        DELAYED_TASKS.add(new DelayedTask(delayTicks, task));
     }
 
     /**
@@ -550,14 +550,14 @@ public class EventRegistry {
      * previous run (e.g. hunter respawn countdown) do not carry over.
      */
     public static void clearDelayedTasks() {
-        delayedTasks.clear();
+        DELAYED_TASKS.clear();
     }
 
     /**
      * Process any delayed tasks that are ready to run.
      */
     private static void processDelayedTasks(MinecraftServer server) {
-        Iterator<DelayedTask> iterator = delayedTasks.iterator();
+        Iterator<DelayedTask> iterator = DELAYED_TASKS.iterator();
         while (iterator.hasNext()) {
             DelayedTask task = iterator.next();
             task.remainingTicks--;

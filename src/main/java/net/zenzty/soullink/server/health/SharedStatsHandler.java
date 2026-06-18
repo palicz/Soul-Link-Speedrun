@@ -155,7 +155,7 @@ public class SharedStatsHandler {
             // Handle periodic damage (Poison/Wither) - normalize by player count
             // Without this, N players poisoned = Nx damage speed
             String damageType = damageSource.getMsgId();
-            if (damageType.equals("poison") || damageType.equals("wither")) {
+            if ("poison".equals(damageType) || "wither".equals(damageType)) {
                 handlePeriodicDamage(damagedPlayer, currentDamageAmount);
                 return;
             }

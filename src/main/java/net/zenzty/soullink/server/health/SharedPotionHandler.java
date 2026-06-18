@@ -34,11 +34,11 @@ public class SharedPotionHandler {
 
     // Track which effects have already been synced to prevent duplicates
     // Cleared at the end of the tick via server.execute().
-    private static final Set<String> recentlySyncedEffects = new HashSet<>();
+    private static final Set<String> RECENTLY_SYNCED_EFFECTS = new HashSet<>();
 
     // Track pending instant effects for the current tick
     // Key: effect type ID, Value: map of player UUID to their distance from impact
-    private static final Map<String, PendingSplashEvent> pendingSplashEvents = new HashMap<>();
+    private static final Map<String, PendingSplashEvent> PENDING_SPLASH_EVENTS = new HashMap<>();
 
     // The current game tick for tracking splash events
     private static long currentTick = -1;
@@ -106,7 +106,7 @@ public class SharedPotionHandler {
         long newTick = server.getTickCount();
         if (newTick != currentTick) {
             // New tick - clean up old splash events
-            pendingSplashEvents.clear();
+            PENDING_SPLASH_EVENTS.clear();
             currentTick = newTick;
         }
     }
@@ -174,7 +174,7 @@ public class SharedPotionHandler {
         String eventKey = effectType.getRegisteredName() + "_" + effect.getAmplifier() + "_" + currentTick;
 
         // Get or create the splash event for this effect
-        PendingSplashEvent splashEvent = pendingSplashEvents.computeIfAbsent(eventKey, k -> new PendingSplashEvent());
+        PendingSplashEvent splashEvent = PENDING_SPLASH_EVENTS.computeIfAbsent(eventKey, k -> new PendingSplashEvent());
 
         // Register this player as affected (store their position and the effect)
         splashEvent.addAffectedPlayer(player);
@@ -268,7 +268,7 @@ public class SharedPotionHandler {
 
         // Create a unique key for this effect to prevent duplicate syncs
         String effectKey = effectType.getRegisteredName() + "_" + effect.getDuration() + "_" + effect.getAmplifier();
-        if (recentlySyncedEffects.contains(effectKey)) {
+        if (RECENTLY_SYNCED_EFFECTS.contains(effectKey)) {
             return true; // Already synced this tick
         }
 
@@ -276,13 +276,13 @@ public class SharedPotionHandler {
         syncEffectToOtherPlayers(player, effect);
 
         // Mark as recently synced (will be cleared after a short delay)
-        recentlySyncedEffects.add(effectKey);
+        RECENTLY_SYNCED_EFFECTS.add(effectKey);
 
         // Schedule cleanup of the recently synced set
         MinecraftServer server = runManager.getServer();
         if (server != null) {
             server.execute(() -> {
-                recentlySyncedEffects.remove(effectKey);
+                RECENTLY_SYNCED_EFFECTS.remove(effectKey);
             });
         }
 
@@ -341,8 +341,8 @@ public class SharedPotionHandler {
      */
     public static void reset() {
         isSyncing = false;
-        recentlySyncedEffects.clear();
-        pendingSplashEvents.clear();
+        RECENTLY_SYNCED_EFFECTS.clear();
+        PENDING_SPLASH_EVENTS.clear();
         currentTick = -1;
     }
 }

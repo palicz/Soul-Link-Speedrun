@@ -23,12 +23,12 @@ public class SharedInventoryHandler {
      */
     public static final int PLAYER_INVENTORY_SIZE = 41;
 
-    private static final List<ItemStack> master = new ArrayList<>(PLAYER_INVENTORY_SIZE);
+    private static final List<ItemStack> MASTER = new ArrayList<>(PLAYER_INVENTORY_SIZE);
     private static volatile boolean isSyncing = false;
 
     static {
         for (int i = 0; i < PLAYER_INVENTORY_SIZE; i++) {
-            master.add(ItemStack.EMPTY);
+            MASTER.add(ItemStack.EMPTY);
         }
     }
 
@@ -63,9 +63,9 @@ public class SharedInventoryHandler {
      * Resets the shared inventory (clears master). Call when starting a new run.
      */
     public static void reset() {
-        synchronized (master) {
+        synchronized (MASTER) {
             for (int i = 0; i < PLAYER_INVENTORY_SIZE; i++) {
-                master.set(i, ItemStack.EMPTY);
+                MASTER.set(i, ItemStack.EMPTY);
             }
         }
         isSyncing = false;
@@ -92,18 +92,18 @@ public class SharedInventoryHandler {
             return;
         }
         int size = Math.min(inv.getContainerSize(), PLAYER_INVENTORY_SIZE);
-        synchronized (master) {
+        synchronized (MASTER) {
             for (int i = 0; i < size; i++) {
                 try {
                     ItemStack stack = inv.getItem(i);
-                    master.set(i, stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
+                    MASTER.set(i, stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
                 } catch (Exception e) {
                     SoulLink.LOGGER.warn(
                             "Error copying inventory slot {} from player {}: {}",
                             i,
                             player.getName().getString(),
                             e.getMessage());
-                    master.set(i, ItemStack.EMPTY);
+                    MASTER.set(i, ItemStack.EMPTY);
                 }
             }
         }
@@ -123,8 +123,8 @@ public class SharedInventoryHandler {
         }
         int size = Math.min(inv.getContainerSize(), PLAYER_INVENTORY_SIZE);
         List<ItemStack> snapshot;
-        synchronized (master) {
-            snapshot = new ArrayList<>(master);
+        synchronized (MASTER) {
+            snapshot = new ArrayList<>(MASTER);
         }
         for (int i = 0; i < size; i++) {
             try {

@@ -11,7 +11,7 @@ import net.zenzty.soullink.server.run.RunState;
  */
 public class Settings {
 
-    private static final Settings instance = new Settings();
+    private static final Settings INSTANCE = new Settings();
 
     // Current active settings (used during runs)
     private Difficulty difficulty = Difficulty.NORMAL;
@@ -28,7 +28,7 @@ public class Settings {
     private Settings() {}
 
     public static Settings getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     // ==================== DIFFICULTY ====================

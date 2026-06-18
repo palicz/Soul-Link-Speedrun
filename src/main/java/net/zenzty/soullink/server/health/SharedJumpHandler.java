@@ -21,10 +21,10 @@ import net.zenzty.soullink.server.settings.Settings;
 public class SharedJumpHandler {
 
     // Track players who jumped naturally in the current tick
-    private static final Set<UUID> jumpersThisTick = new HashSet<>();
+    private static final Set<UUID> JUMPERS_THIS_TICK = new HashSet<>();
 
     // Track players who have been forced to jump this tick (to prevent double velocity)
-    private static final Set<UUID> forcedJumpersThisTick = new HashSet<>();
+    private static final Set<UUID> FORCED_JUMPERS_THIS_TICK = new HashSet<>();
 
     // Track the last tick we collected jumpers for
     private static int lastCollectedTick = -1;
@@ -65,8 +65,8 @@ public class SharedJumpHandler {
             // Only clear if we've already processed the previous tick's jumps
             // or if this is the first tick we're tracking
             if (lastProcessedTick >= lastCollectedTick || lastCollectedTick == -1) {
-                jumpersThisTick.clear();
-                forcedJumpersThisTick.clear();
+                JUMPERS_THIS_TICK.clear();
+                FORCED_JUMPERS_THIS_TICK.clear();
             }
             lastCollectedTick = currentTick;
         }
@@ -74,7 +74,7 @@ public class SharedJumpHandler {
         // Add this player to the jumpers set (only if not already processing)
         // This prevents double-counting if somehow called during processing
         if (!processingJumps) {
-            jumpersThisTick.add(player.getUUID());
+            JUMPERS_THIS_TICK.add(player.getUUID());
         }
 
         // Log for debugging
@@ -98,7 +98,7 @@ public class SharedJumpHandler {
         }
 
         // If no one jumped in the last processed tick, nothing to do
-        if (jumpersThisTick.isEmpty()) {
+        if (JUMPERS_THIS_TICK.isEmpty()) {
             return;
         }
 
@@ -121,19 +121,19 @@ public class SharedJumpHandler {
                 }
 
                 // Skip players who already jumped naturally this tick
-                if (jumpersThisTick.contains(player.getUUID())) continue;
+                if (JUMPERS_THIS_TICK.contains(player.getUUID())) continue;
 
                 // Skip players who have already been forced to jump this tick
-                if (forcedJumpersThisTick.contains(player.getUUID())) continue;
+                if (FORCED_JUMPERS_THIS_TICK.contains(player.getUUID())) continue;
 
                 // Apply force jump to this player
                 applyForceJump(player);
-                forcedJumpersThisTick.add(player.getUUID());
+                FORCED_JUMPERS_THIS_TICK.add(player.getUUID());
             }
 
             SoulLink.LOGGER.debug(
                     "[Shared Jump] Processed {} natural jumpers at tick end (tick {})",
-                    jumpersThisTick.size(),
+                    JUMPERS_THIS_TICK.size(),
                     lastCollectedTick);
 
             // Mark this tick as processed
@@ -141,8 +141,8 @@ public class SharedJumpHandler {
 
             // Clear the sets after processing to prepare for the next tick
             // This ensures we don't process the same jumps twice
-            jumpersThisTick.clear();
-            forcedJumpersThisTick.clear();
+            JUMPERS_THIS_TICK.clear();
+            FORCED_JUMPERS_THIS_TICK.clear();
         } finally {
             processingJumps = false;
         }
@@ -175,8 +175,8 @@ public class SharedJumpHandler {
      * Resets state for a new run.
      */
     public static void reset() {
-        jumpersThisTick.clear();
-        forcedJumpersThisTick.clear();
+        JUMPERS_THIS_TICK.clear();
+        FORCED_JUMPERS_THIS_TICK.clear();
         lastCollectedTick = -1;
         lastProcessedTick = -1;
         processingJumps = false;
