@@ -10,7 +10,7 @@
 	"contact": {
 		"sources": "https://github.com/zenzty/Soul-Link-Speedrun"
 	},
-	"license": "MIT",
+	"license": "GPL-3.0-or-later",
 	"icon": "assets/soullink/icon.png",
 	"environment": "*",
 	"entrypoints": {
