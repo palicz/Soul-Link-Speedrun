@@ -1,0 +1,27 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Java is formatted by Spotless + palantir-java-format (4-space indentation).
+[*.java]
+indent_style = space
+indent_size = 4
+
+# Gradle build scripts use tabs, matching the Fabric example mod.
+[*.gradle]
+indent_style = tab
+
+[*.{properties,toml}]
+indent_style = space
+indent_size = 2
+
+[*.{json,yml,yaml,xml}]
+indent_style = space
+indent_size = 2
+
+[*.bat]
+end_of_line = crlf
