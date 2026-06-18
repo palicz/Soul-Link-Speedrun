@@ -1,8 +1,6 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
-
+# Builds the mod on every push and pull request. The `build` task also runs
+# `spotlessCheck` and `checkstyleMain`, so formatting and static analysis are
+# enforced here too.
 name: build
 on: [pull_request, push]
 
@@ -10,21 +8,26 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: validate gradle wrapper
+
+      - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
-      - name: setup jdk
+
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
-      - name: build
-        run: ./gradlew build
-      - name: capture build artifacts
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew build --stacktrace
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Artifacts
+          name: artifacts
           path: build/libs/
