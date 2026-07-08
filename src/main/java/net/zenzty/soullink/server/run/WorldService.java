@@ -97,6 +97,21 @@ public class WorldService {
         this.currentSeed = run.seed();
     }
 
+    /**
+     * Clears rain and thunder for a fresh run. In 26.1 weather lives on {@link MinecraftServer}, not on
+     * individual Fantasy worlds, so it survives world swaps unless reset explicitly (unlike time, which
+     * we already reset via {@link ServerClockManager} when pre-warming worlds).
+     */
+    public void resetWeatherForNewRun(ServerLevel overworld) {
+        if (!overworld.canHaveWeather()) {
+            return;
+        }
+
+        server.setWeatherParameters(-1, ServerLevel.RAIN_DELAY.sample(overworld.getRandom()), false, false);
+        overworld.setRainLevel(0.0f);
+        overworld.setThunderLevel(0.0f);
+    }
+
     public void saveCurrentWorldsAsOld() {
         oldOverworldHandle = overworldHandle;
         oldNetherHandle = netherHandle;

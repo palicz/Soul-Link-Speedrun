@@ -230,6 +230,7 @@ public class RunManager {
         if (overworld == null) return;
         if (spawnPos == null) spawnPos = new BlockPos(0, 64, 0);
 
+        worldService.resetWeatherForNewRun(overworld);
         teleportService.forceloadSpawnChunks(overworld, spawnPos);
 
         gameState = RunState.RUNNING;
